@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/pages/calendrier.dart';
 import 'package:frontend/pages/dashboard.dart';
 import 'package:frontend/pages/consultations.dart';
-import 'package:frontend/pages/appels.dart';
+import 'package:frontend/pages/journal.dart';
 import 'package:frontend/pages/parametres.dart';
 
 class MainMenu extends StatefulWidget {
@@ -18,7 +18,7 @@ class _MainMenuState extends State<MainMenu> {
   final List<Widget> _pages = [
     Dashboard(),
     Consultations(),
-    Appels(),
+    Journal(),
     Calendriers(),
     Parametres(),
   ];
