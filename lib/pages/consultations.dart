@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class Dashboard extends StatefulWidget {
-  const Dashboard({super.key});
+class Consultations extends StatefulWidget {
+  const Consultations({super.key});
 
   @override
-  State<Dashboard> createState() => _DashboardState();
+  State<Consultations> createState() => _ConsultationsState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _ConsultationsState extends State<Consultations> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,7 +19,7 @@ class _DashboardState extends State<Dashboard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Dashboard',
+              'Consultations',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
@@ -39,7 +39,7 @@ class _DashboardState extends State<Dashboard> {
           ],
         ),
       ),
-      body: Center(child: Text('Dashboard')),
+      body: Center(child: Text('Consultations')),
     );
   }
 }

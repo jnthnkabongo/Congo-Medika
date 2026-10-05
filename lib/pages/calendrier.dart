@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-class Dashboard extends StatefulWidget {
-  const Dashboard({super.key});
+class Calendriers extends StatefulWidget {
+  const Calendriers({super.key});
 
   @override
-  State<Dashboard> createState() => _DashboardState();
+  State<Calendriers> createState() => _CalendrierState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _CalendrierState extends State<Calendriers> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xFF95057B),
         elevation: 0,
@@ -19,7 +19,7 @@ class _DashboardState extends State<Dashboard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Dashboard',
+              'Calendrier',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
@@ -39,7 +39,9 @@ class _DashboardState extends State<Dashboard> {
           ],
         ),
       ),
-      body: Center(child: Text('Dashboard')),
+      body: Center(
+        child: Text('Calendriers'),
+      ),
     );
   }
 }
