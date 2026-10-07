@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/pages/appel_en_cours.dart';
+import 'package:frontend/pages/appel_video.dart';
 import 'package:frontend/pages/main_menu.dart';
 
 class Chats extends StatefulWidget {
@@ -102,11 +104,27 @@ class _ChatsState extends State<Chats> {
         actions: [
           IconButton(
             icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              // Navigation vers l'appel en cours
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppelEnCours(),
+                ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              // Navigation vers l'appel vidéo
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppelVideo(),
+                ),
+              );
+            },
           ),
         ],
       ),
