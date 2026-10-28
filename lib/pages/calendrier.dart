@@ -8,6 +8,22 @@ class Calendriers extends StatefulWidget {
 }
 
 class _CalendrierState extends State<Calendriers> {
+  void _createRendezVous() {
+    // TODO: Implémenter la logique de création de rendez-vous
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (context) {
+        return SizedBox(
+          height: 200,
+          child: Center(child: Text('Créer un rendez-vous')),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -139,6 +155,18 @@ class _CalendrierState extends State<Calendriers> {
           ],
         ),
       ),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return FloatingActionButton(
+      onPressed: () {
+        // TODO: Implémenter la logique de création de rendez-vous
+        _createRendezVous();
+      },
+      backgroundColor: const Color(0xFF95057B),
+      child: const Icon(Icons.calendar_month, color: Colors.white),
     );
   }
 

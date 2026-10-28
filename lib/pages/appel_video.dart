@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class AppelVideo extends StatefulWidget {
-  const AppelVideo({super.key});
+  final String? meetingId;
+  final String? token;
+  final String? organizationId;
+
+  const AppelVideo({
+    super.key,
+    this.meetingId,
+    this.token,
+    this.organizationId,
+  });
 
   @override
   State<AppelVideo> createState() => _AppelVideoState();

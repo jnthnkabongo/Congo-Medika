@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/pages/profil_patient.dart';
+import 'package:frontend/pages/paiements.dart';
 
 class Parametres extends StatefulWidget {
   const Parametres({super.key});
@@ -107,10 +109,22 @@ class _ParametresState extends State<Parametres> {
               _buildSettingsItem(
                 'Informations personnelles',
                 Icons.person_outline,
-                () {},
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilPatient(),
+                    ),
+                  );
+                },
               ),
               _buildSettingsItem('Sécurité', Icons.security, () {}),
-              _buildSettingsItem('Moyens de paiement', Icons.payment, () {}),
+              _buildSettingsItem('Moyens de paiement', Icons.payment, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const Paiements()),
+                );
+              }),
             ]),
             const SizedBox(height: 16),
 

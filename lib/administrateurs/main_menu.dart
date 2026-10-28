@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/pages/calendrier.dart';
-import 'package:frontend/pages/dashboard.dart';
-import 'package:frontend/pages/consultations.dart';
-import 'package:frontend/pages/journal.dart';
-import 'package:frontend/pages/parametres.dart';
+import 'package:frontend/administrateurs/dashboard_admin.dart';
+import 'package:frontend/administrateurs/consultations_admin.dart';
+import 'package:frontend/administrateurs/journals_admin.dart';
+import 'package:frontend/administrateurs/calendriers_admin.dart';
+import 'package:frontend/administrateurs/parametres_admin.dart';
 
 class MainMenuAdmin extends StatefulWidget {
   const MainMenuAdmin({super.key});
@@ -16,11 +16,11 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    Dashboard(),
-    Consultations(),
-    Journal(),
-    Calendriers(),
-    Parametres(),
+    const DashboardAdmins(),
+    const ConsultationsAdmin(),
+    const JournalsAdmin(),
+    const CalendriersAdmin(),
+    const ParametresAdmin(),
   ];
 
   @override

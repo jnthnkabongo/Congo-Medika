@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../pages/main_menu.dart';
+import '../services/auth_service.dart';
 
 class Verification extends StatefulWidget {
-  const Verification({super.key});
+  final String challengeId;
+  final bool isLogin;
+  final String email;
+  final String role;
+
+  const Verification({
+    super.key,
+    required this.challengeId,
+    this.isLogin = false,
+    required this.email,
+    required this.role,
+  });
 
   @override
   State<Verification> createState() => _VerificationState();
@@ -11,10 +23,10 @@ class Verification extends StatefulWidget {
 
 class _VerificationState extends State<Verification> {
   final List<TextEditingController> _codeControllers = List.generate(
-    4,
+    6,
     (index) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
   bool _isLoading = false;
 
   @override
@@ -29,20 +41,100 @@ class _VerificationState extends State<Verification> {
   }
 
   void _onCodeChanged(String value, int index) {
-    if (value.isNotEmpty && index < 3) {
+    if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }
   }
 
-  void _verifyCode() {
+  Future<void> _verifyCode() async {
     String code = _codeControllers.map((controller) => controller.text).join();
-    print('Code de vérification: $code');
-    Navigator.pushReplacement(
-      context, 
-      MaterialPageRoute(
-        builder: (context) => const MainMenu(),
-      ),
-    );
+
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le code doit contenir 6 chiffres'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      Map<String, dynamic> response;
+
+      if (widget.isLogin) {
+        // Vérification du code de connexion (2FA)
+        response = await AuthService.verifyLoginCode(
+          challengeId: widget.challengeId,
+          code: code,
+        );
+      } else {
+        // Vérification de l'email
+        response = await AuthService.verifyEmail(
+          challengeId: widget.challengeId,
+          code: code,
+        );
+      }
+
+      // Sauvegarder le token et les données utilisateur
+      if (response.containsKey('accessToken')) {
+        await AuthService.sauvegardeDonneesUser(
+          AuthService.tokenKey,
+          response['accessToken'],
+        );
+        await AuthService.sauvegardeDonneesUser(
+          AuthService.refreshTokenKey,
+          response['refreshToken'],
+        );
+        await AuthService.sauvegardeDonneesUser(
+          AuthService.userKey,
+          response['user'],
+        );
+
+        // Sauvegarder le token Meet SaaS et organizationId si disponibles
+        if (response.containsKey('meetSaaSToken') && response['meetSaaSToken'] != null) {
+          await AuthService.sauvegardeDonneesUser(
+            'meetSaaSToken',
+            response['meetSaaSToken']['token'],
+          );
+          await AuthService.sauvegardeDonneesUser(
+            'organizationId',
+            response['meetSaaSToken']['organizationId'],
+          );
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Vérification réussie'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMenu()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -101,9 +193,9 @@ class _VerificationState extends State<Verification> {
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(4, (index) {
+                        children: List.generate(6, (index) {
                           return SizedBox(
-                            width: 60,
+                            width: 50,
                             height: 60,
                             child: TextField(
                               controller: _codeControllers[index],
@@ -142,7 +234,7 @@ class _VerificationState extends State<Verification> {
                               onChanged: (value) =>
                                   _onCodeChanged(value, index),
                               onSubmitted: (value) {
-                                if (index == 3) {
+                                if (index == 5) {
                                   _verifyCode();
                                 }
                               },

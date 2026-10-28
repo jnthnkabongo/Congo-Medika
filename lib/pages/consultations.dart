@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/pages/chats.dart';
+import 'package:frontend/services/teleconsultations_service.dart';
 
 class Consultations extends StatefulWidget {
   const Consultations({super.key});
@@ -9,6 +10,246 @@ class Consultations extends StatefulWidget {
 }
 
 class _ConsultationsState extends State<Consultations> {
+  String? _selectedSpecialty;
+  String? _selectedDoctor;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedStartTime;
+  TimeOfDay? _selectedEndTime;
+  final _reasonController = TextEditingController();
+
+  final List<String> _specialties = [
+    'Médecine générale',
+    'Cardiologie',
+    'Pédiatrie',
+    'Gynécologie',
+    'Dermatologie',
+    'Neurologie',
+    'ORL',
+    'Ophtalmologie',
+  ];
+
+  final Map<String, List<String>> _doctorsBySpecialty = {
+    'Médecine générale': ['Dr. Jean-Pierre Kabongo', 'Dr. Pierre Mwamba'],
+    'Cardiologie': ['Dr. Marie-Claire Mbombo'],
+    'Pédiatrie': ['Dr. François Mutombo'],
+    'Gynécologie': ['Dr. Anne-Marie Lumbu'],
+    'Dermatologie': ['Dr. Pauline Nseke'],
+    'Neurologie': ['Dr. Claude Mukendi'],
+    'ORL': ['Dr. Emmanuel Mutsh'],
+    'Ophtalmologie': ['Dr. Suzanne Mbuyi'],
+  };
+
+  void _createConsultation() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Nouvelle consultation',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Spécialité',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedSpecialty,
+                      items: _specialties.map((specialty) {
+                        return DropdownMenuItem(
+                          value: specialty,
+                          child: Text(specialty),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          _selectedSpecialty = value;
+                          _selectedDoctor = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Médecin',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedDoctor,
+                      items: _selectedSpecialty != null
+                          ? _doctorsBySpecialty[_selectedSpecialty!]?.map((
+                              doctor,
+                            ) {
+                              return DropdownMenuItem(
+                                value: doctor,
+                                child: Text(doctor),
+                              );
+                            }).toList()
+                          : null,
+                      onChanged: (value) {
+                        setModalState(() {
+                          _selectedDoctor = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    InkWell(
+                      onTap: () async {
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
+                        );
+                        if (pickedDate != null) {
+                          setModalState(() {
+                            _selectedDate = pickedDate;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Date',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _selectedDate != null
+                              ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                              : 'Sélectionner une date',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.now(),
+                              );
+                              if (pickedTime != null) {
+                                setModalState(() {
+                                  _selectedStartTime = pickedTime;
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Heure début',
+                                border: OutlineInputBorder(),
+                              ),
+                              child: Text(
+                                _selectedStartTime != null
+                                    ? _selectedStartTime!.format(context)
+                                    : 'Sélectionner',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.now(),
+                              );
+                              if (pickedTime != null) {
+                                setModalState(() {
+                                  _selectedEndTime = pickedTime;
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Heure fin',
+                                border: OutlineInputBorder(),
+                              ),
+                              child: Text(
+                                _selectedEndTime != null
+                                    ? _selectedEndTime!.format(context)
+                                    : 'Sélectionner',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _reasonController,
+                      decoration: const InputDecoration(
+                        labelText: 'Motif de consultation',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF95057B),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Créer',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,16 +310,6 @@ class _ConsultationsState extends State<Consultations> {
             ),
             const SizedBox(height: 20),
 
-            // Text(
-            //   'Mes consultations',
-            //   style: TextStyle(
-            //     fontSize: 18,
-            //     fontWeight: FontWeight.bold,
-            //     color: Colors.grey[800],
-            //   ),
-            // ),
-            const SizedBox(height: 16),
-
             _buildConsultationCard(
               'Dr. Jean-Pierre Kabongo',
               'Médecin Généraliste',
@@ -130,6 +361,17 @@ class _ConsultationsState extends State<Consultations> {
           ],
         ),
       ),
+      floatingActionButton: _buildFloatingActionButton(),
+    );
+  }
+
+  FloatingActionButton _buildFloatingActionButton() {
+    return FloatingActionButton(
+      onPressed: () {
+        _createConsultation();
+      },
+      backgroundColor: const Color(0xFF95057B),
+      child: const Icon(Icons.medical_services_sharp, color: Colors.white),
     );
   }
 
@@ -142,11 +384,38 @@ class _ConsultationsState extends State<Consultations> {
     Color statusColor,
   ) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Chats()),
-        );
+      onTap: () async {
+        try {
+          // Créer une téléconsultation via l'API backend
+          // Pour la démo, on utilise des IDs fictifs. Dans une vraie app, ils viendraient de l'API
+          final teleconsultation = await TeleconsultationsService.createTeleconsultation(
+            appointmentId: 1, // ID fictif pour la démo
+            patientId: 1, // ID fictif pour la démo
+            doctorId: 1, // ID fictif pour la démo
+          );
+
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Chats(
+                  roomId: teleconsultation['roomId'],
+                  teleconsultationId: teleconsultation['id'],
+                  doctorName: doctorName,
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur: ${e.toString().replaceAll('Exception: ', '')}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(16),

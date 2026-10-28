@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/pages/appel_en_cours.dart';
-import 'package:frontend/pages/appel_video.dart';
-import 'package:frontend/pages/main_menu.dart';
+import 'package:frontend/services/websocket_service.dart';
+import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/messages_service.dart';
+import 'package:frontend/services/meet_saas_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Chats extends StatefulWidget {
-  const Chats({super.key});
+  final String roomId;
+  final String teleconsultationId;
+  final String doctorName;
+  final String? meetSaaSToken;
+  final String? organizationId;
+
+  const Chats({
+    super.key,
+    required this.roomId,
+    required this.teleconsultationId,
+    this.doctorName = 'Dr. Jean-Pierre Kabongo',
+    this.meetSaaSToken,
+    this.organizationId,
+  });
 
   @override
   State<Chats> createState() => _ChatsState();
@@ -12,49 +27,155 @@ class Chats extends StatefulWidget {
 
 class _ChatsState extends State<Chats> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'text': 'Bonjour, comment puis-je vous aider aujourd\'hui?',
-      'isSent': false,
-      'time': '10:30',
-    },
-    {
-      'text': 'Je voudrais prendre rendez-vous pour une consultation.',
-      'isSent': true,
-      'time': '10:32',
-    },
-    {
-      'text': 'Bien sûr, quelle date vous conviendrait le mieux?',
-      'isSent': false,
-      'time': '10:33',
-    },
-    {'text': 'Demain à 14h si possible.', 'isSent': true, 'time': '10:35'},
-    {
-      'text':
-          'Parfait, je vous note pour demain à 14h. N\'oubliez pas d\'apporter vos documents médicaux.',
-      'isSent': false,
-      'time': '10:36',
-    },
-  ];
+  final WebSocketService _wsService = WebSocketService();
+  final ScrollController _scrollController = ScrollController();
+
+  List<Map<String, dynamic>> _messages = [];
+  bool _isConnected = false;
+  bool _isLoading = true;
+  String? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebSocket();
+  }
+
+  Future<void> _initializeWebSocket() async {
+    try {
+      // Récupérer le token stocké
+      final token = await AuthService.getToken();
+      final user = await AuthService.getDonneesUser(AuthService.userKey);
+
+      if (token == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Veuillez vous connecter d\'abord'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      print('Token récupéré: ${token.substring(0, 20)}...');
+      print('Room ID: ${widget.roomId}');
+
+      setState(() {
+        _userRole = user['role'];
+      });
+
+      // Connecter au WebSocket
+      await _wsService.connect(token);
+
+      // Écouter les événements
+      _wsService.onConnectionChanged.listen((connected) {
+        print('Statut WebSocket: $connected');
+        setState(() {
+          _isConnected = connected;
+          _isLoading = false;
+        });
+
+        // Rejoindre la room seulement quand connecté
+        if (connected) {
+          _wsService.joinRoom(widget.roomId);
+        }
+      });
+
+      _wsService.onMessage.listen((message) {
+        print('Message reçu: $message');
+        setState(() {
+          _messages.add(message);
+        });
+        _scrollToBottom();
+      });
+
+      _wsService.onError.listen((error) {
+        print('Erreur WebSocket: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
+
+      _wsService.onRoomJoined.listen((roomId) async {
+        print('Room rejointe: $roomId');
+        // Charger l'historique des messages
+        try {
+          final history = await MessagesService.getMessagesByRoomId(roomId);
+          if (mounted) {
+            setState(() {
+              _messages = history;
+            });
+            _scrollToBottom();
+          }
+        } catch (e) {
+          print('Erreur lors du chargement de l\'historique: $e');
+        }
+      });
+
+      // Rejoindre la room sera fait après connexion
+      // _wsService.joinRoom(widget.roomId);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur de connexion: $e')));
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _sendMessage() {
+    if (_messageController.text.trim().isEmpty) return;
+
+    if (!_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WebSocket non connecté. Veuillez réessayer.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      _wsService.sendMessage(
+        roomId: widget.roomId,
+        content: _messageController.text.trim(),
+      );
+      _messageController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur d\'envoi: $e')));
+    }
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
+    _wsService.dispose();
     super.dispose();
-  }
-
-  void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
-      setState(() {
-        _messages.add({
-          'text': _messageController.text.trim(),
-          'isSent': true,
-          'time':
-              '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-        });
-      });
-      _messageController.clear();
-    }
   }
 
   @override
@@ -82,20 +203,33 @@ class _ChatsState extends State<Chats> {
               child: const Icon(Icons.person, color: Color(0xFF95057B)),
             ),
             const SizedBox(width: 12),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dr. Jean-Pierre Kabongo',
+                  widget.doctorName,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  'En ligne',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _isConnected ? Colors.green : Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isConnected ? 'En ligne' : 'Hors ligne',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -104,46 +238,251 @@ class _ChatsState extends State<Chats> {
         actions: [
           IconButton(
             icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: () {
-              // Navigation vers l'appel en cours
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppelEnCours(),
-                ),
-              );
+            onPressed: () async {
+              // Créer une réunion audio Meet SaaS et ouvrir dans le navigateur
+              try {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Création de l\'appel audio...'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+
+                final meeting =
+                    await MeetSaaSService.createMeetingForTeleconsultation(
+                      widget.teleconsultationId,
+                      mode: 'AUDIO',
+                    );
+
+                if (mounted) {
+                  final meetingId = meeting['id'];
+                  if (meetingId != null) {
+                    // Récupérer le token Meet SaaS de l'utilisateur
+                    final meetSaaSToken = await AuthService.getDonneesUser(
+                      'meetSaaSToken',
+                    );
+
+                    if (meetSaaSToken != null) {
+                      // Construire l'URL Meet SaaS avec le meetingId et le token
+                      final meetUrl =
+                          'https://stax.verstands.dev/join/$meetingId?token=$meetSaaSToken';
+
+                      print('Attempting to launch URL: $meetUrl');
+                      final uri = Uri.parse(meetUrl);
+
+                      try {
+                        final canLaunch = await canLaunchUrl(uri);
+                        print('canLaunchUrl result: $canLaunch');
+
+                        if (canLaunch) {
+                          final launched = await launchUrl(uri);
+                          print('launchUrl result: $launched');
+                        } else {
+                          print('canLaunchUrl returned false');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Erreur: Impossible d\'ouvrir le navigateur.',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print('Error launching URL: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Erreur: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Erreur: Token Meet SaaS non disponible. Veuillez vous reconnecter.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Erreur: Impossible de créer le meeting.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Erreur: ${e.toString().replaceAll('Exception: ', '')}',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
           ),
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () {
-              // Navigation vers l'appel vidéo
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppelVideo(),
-                ),
-              );
+            onPressed: () async {
+              // Créer une réunion vidéo Meet SaaS et ouvrir dans le navigateur
+              try {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Création de l\'appel vidéo...'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+
+                final meeting =
+                    await MeetSaaSService.createMeetingForTeleconsultation(
+                      widget.teleconsultationId,
+                      mode: 'VIDEO',
+                    );
+
+                if (mounted) {
+                  final meetingId = meeting['meetingId'];
+                  if (meetingId != null) {
+                    // Récupérer le token Meet SaaS de l'utilisateur
+                    final meetSaaSToken = await AuthService.getDonneesUser(
+                      'meetSaaSToken',
+                    );
+
+                    if (meetSaaSToken != null) {
+                      // Construire l'URL Meet SaaS avec le meetingId et le token
+                      final meetUrl =
+                          'https://stax.verstands.dev/join/$meetingId?token=$meetSaaSToken';
+
+                      print('Attempting to launch URL: $meetUrl');
+                      final uri = Uri.parse(meetUrl);
+
+                      try {
+                        final canLaunch = await canLaunchUrl(uri);
+                        print('canLaunchUrl result: $canLaunch');
+
+                        if (canLaunch) {
+                          final launched = await launchUrl(uri);
+                          print('launchUrl result: $launched');
+                        } else {
+                          print('canLaunchUrl returned false');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Erreur: Impossible d\'ouvrir le navigateur.',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print('Error launching URL: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Erreur: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Erreur: Token Meet SaaS non disponible. Veuillez vous reconnecter.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Erreur: Impossible de créer le meeting.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Erreur: ${e.toString().replaceAll('Exception: ', '')}',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(
-                  message['text'] as String,
-                  message['isSent'] as bool,
-                  message['time'] as String,
-                );
-              },
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (!_isConnected)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text('Connexion perdue'),
+                  TextButton(
+                    onPressed: _initializeWebSocket,
+                    child: const Text('Reconnecter'),
+                  ),
+                ],
+              ),
+            )
+          else
+            Expanded(
+              child: _messages.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Aucun message',
+                            style: TextStyle(color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final message = _messages[index];
+                        return _buildMessageBubble(
+                          message['content'] as String? ?? '[Audio]',
+                          message['senderType'] == _userRole,
+                          _formatTime(message['createdAt']),
+                        );
+                      },
+                    ),
             ),
-          ),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -205,6 +544,21 @@ class _ChatsState extends State<Chats> {
         ],
       ),
     );
+  }
+
+  String _formatTime(dynamic dateTime) {
+    if (dateTime == null) return '';
+
+    DateTime time;
+    if (dateTime is String) {
+      time = DateTime.parse(dateTime);
+    } else if (dateTime is DateTime) {
+      time = dateTime;
+    } else {
+      return '';
+    }
+
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildMessageBubble(String text, bool isSent, String time) {

@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class AppelEnCours extends StatefulWidget {
-  const AppelEnCours({super.key});
+  final String? meetingId;
+  final String? token;
+  final String? organizationId;
+
+  const AppelEnCours({
+    super.key,
+    this.meetingId,
+    this.token,
+    this.organizationId,
+  });
 
   @override
   State<AppelEnCours> createState() => _AppelEnCoursState();

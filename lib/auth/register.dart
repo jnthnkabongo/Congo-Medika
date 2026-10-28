@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/services/services.dart';
+import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/auth/login.dart';
 
 class Register extends StatefulWidget {
@@ -11,20 +11,37 @@ class Register extends StatefulWidget {
 
 class _RegisterState extends State<Register> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _dateOfBirthController = TextEditingController();
+  final _specialtyIdController = TextEditingController();
+  final _licenseNumberController = TextEditingController();
+  final _bioController = TextEditingController();
+
+  String _selectedRole = 'patient';
+  String _selectedGender = 'other';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _addressController.dispose();
+    _dateOfBirthController.dispose();
+    _specialtyIdController.dispose();
+    _licenseNumberController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -34,12 +51,69 @@ class _RegisterState extends State<Register> {
         _isLoading = true;
       });
 
-      print('Nom: ${_nameController.text}');
-      print('Email: ${_emailController.text}');
-      print('Mot de passe: ${_passwordController.text}');
+      try {
+        final result = await AuthService.register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          role: _selectedRole,
+          gender: _selectedGender,
+          address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+          dateOfBirth: _dateOfBirthController.text.trim().isEmpty ? null : _dateOfBirthController.text.trim(),
+          specialtyId: _selectedRole == 'doctor' && _specialtyIdController.text.trim().isNotEmpty
+              ? _specialtyIdController.text.trim()
+              : null,
+          licenseNumber: _selectedRole == 'doctor' && _licenseNumberController.text.trim().isNotEmpty
+              ? _licenseNumberController.text.trim()
+              : null,
+          bio: _selectedRole == 'doctor' && _bioController.text.trim().isNotEmpty
+              ? _bioController.text.trim()
+              : null,
+        );
 
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Inscription réussie'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Login()),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _selectDateOfBirth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && mounted) {
       setState(() {
-        _isLoading = false;
+        _dateOfBirthController.text = picked.toIso8601String().split('T')[0];
       });
     }
   }
@@ -90,12 +164,51 @@ class _RegisterState extends State<Register> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Sélecteur de rôle
+                        DropdownButtonFormField<String>(
+                          value: _selectedRole,
+                          decoration: InputDecoration(
+                            labelText: 'Rôle',
+                            prefixIcon: const Icon(
+                              Icons.person_outline,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'patient', child: Text('Patient')),
+                            DropdownMenuItem(value: 'doctor', child: Text('Médecin')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedRole = value!;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Prénom
                         TextFormField(
-                          controller: _nameController,
+                          controller: _firstNameController,
                           keyboardType: TextInputType.name,
                           decoration: InputDecoration(
-                            labelText: 'Nom complet',
-                            hintText: 'Entrez votre nom complet',
+                            labelText: 'Prénom',
+                            hintText: 'Entrez votre prénom',
                             prefixIcon: const Icon(
                               Icons.person_outlined,
                               color: Color(0xFF95057B),
@@ -119,13 +232,51 @@ class _RegisterState extends State<Register> {
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer votre nom complet';
+                              return 'Veuillez entrer votre prénom';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
 
+                        // Nom
+                        TextFormField(
+                          controller: _lastNameController,
+                          keyboardType: TextInputType.name,
+                          decoration: InputDecoration(
+                            labelText: 'Nom',
+                            hintText: 'Entrez votre nom',
+                            prefixIcon: const Icon(
+                              Icons.person_outlined,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Veuillez entrer votre nom';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Email
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -167,6 +318,254 @@ class _RegisterState extends State<Register> {
                         ),
                         const SizedBox(height: 20),
 
+                        // Téléphone
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: 'Téléphone',
+                            hintText: 'Entrez votre numéro de téléphone',
+                            prefixIcon: const Icon(
+                              Icons.phone_outlined,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Veuillez entrer votre numéro de téléphone';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Genre
+                        DropdownButtonFormField<String>(
+                          value: _selectedGender,
+                          decoration: InputDecoration(
+                            labelText: 'Genre',
+                            prefixIcon: const Icon(
+                              Icons.wc_outlined,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'male', child: Text('Homme')),
+                            DropdownMenuItem(value: 'female', child: Text('Femme')),
+                            DropdownMenuItem(value: 'other', child: Text('Autre')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedGender = value!;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Date de naissance (optionnel)
+                        TextFormField(
+                          controller: _dateOfBirthController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            labelText: 'Date de naissance (optionnel)',
+                            hintText: 'Sélectionnez votre date de naissance',
+                            prefixIcon: const Icon(
+                              Icons.calendar_today_outlined,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.calendar_today),
+                              onPressed: () => _selectDateOfBirth(context),
+                            ),
+                          ),
+                          onTap: () => _selectDateOfBirth(context),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Adresse (optionnel)
+                        TextFormField(
+                          controller: _addressController,
+                          keyboardType: TextInputType.streetAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Adresse (optionnel)',
+                            hintText: 'Entrez votre adresse',
+                            prefixIcon: const Icon(
+                              Icons.location_on_outlined,
+                              color: Color(0xFF95057B),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF95057B),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Champs spécifiques aux médecins
+                        if (_selectedRole == 'doctor') ...[
+                          TextFormField(
+                            controller: _specialtyIdController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'ID Spécialité',
+                              hintText: 'Entrez l\'ID de votre spécialité',
+                              prefixIcon: const Icon(
+                                Icons.work_outline,
+                                color: Color(0xFF95057B),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF95057B),
+                                  width: 2,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            validator: (value) {
+                              if (_selectedRole == 'doctor' && (value == null || value.isEmpty)) {
+                                return 'L\'ID de spécialité est obligatoire pour les médecins';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          TextFormField(
+                            controller: _licenseNumberController,
+                            decoration: InputDecoration(
+                              labelText: 'Numéro de licence',
+                              hintText: 'Entrez votre numéro de licence',
+                              prefixIcon: const Icon(
+                                Icons.badge_outlined,
+                                color: Color(0xFF95057B),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF95057B),
+                                  width: 2,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            validator: (value) {
+                              if (_selectedRole == 'doctor' && (value == null || value.isEmpty)) {
+                                return 'Le numéro de licence est obligatoire pour les médecins';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          TextFormField(
+                            controller: _bioController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              labelText: 'Biographie (optionnel)',
+                              hintText: 'Décrivez votre expérience et vos qualifications',
+                              prefixIcon: const Icon(
+                                Icons.description_outlined,
+                                color: Color(0xFF95057B),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF95057B),
+                                  width: 2,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Mot de passe
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
@@ -219,6 +618,7 @@ class _RegisterState extends State<Register> {
                         ),
                         const SizedBox(height: 20),
 
+                        // Confirmer le mot de passe
                         TextFormField(
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,

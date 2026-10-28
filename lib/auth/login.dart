@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/auth/register.dart';
 import 'package:frontend/auth/verification.dart';
+import 'package:frontend/services/auth_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -12,6 +13,7 @@ class Login extends StatefulWidget {
 
 class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
+  String _selectedRole = 'patient';
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -25,62 +27,62 @@ class _LoginState extends State<Login> {
   }
 
   void _login() async {
-    //   if (_formKey.currentState!.validate()) {
-    //     setState(() {
-    //       _isLoading = true;
-    //     });
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
 
-    //     try {
-    //       final response = await ApiService.login(
-    //         _emailController.text,
-    //         _passwordController.text,
-    //       );
+      try {
+        final response = await AuthService.login(
+          email: _emailController.text,
+          password: _passwordController.text,
+          role: _selectedRole,
+        );
 
-    //       if (response.containsKey('user')) {
-    //         await ApiService.sauvegardeDonneesUser(
-    //           'auth_token',
-    //           response['token'],
-    //         );
-    //         await ApiService.sauvegardeDonneesUser('user', response['user']);
+        // Le login renvoie un challengeId pour la vérification 2FA
+        if (response.containsKey('challengeId')) {
+          print('Challenge ID reçu: ${response['challengeId']}');
 
-    //         print(
-    //           "Les données sauvegardes : ${response['token']} et ${response['user']}",
-    //         );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Code de connexion envoyé à votre email'),
+                backgroundColor: Colors.blue,
+              ),
+            );
 
-    //         print(response['message']);
+            // Naviguer vers l'écran de vérification avec le challengeId
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Verification(
+                  challengeId: response['challengeId'],
+                  isLogin: true,
+                  email: _emailController.text,
+                  role: _selectedRole,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        print(e);
+        _showErrorSnackBar('Erreur de connexion: ${e.toString()}');
 
-    //         if (mounted) {
-    //           ScaffoldMessenger.of(context).showSnackBar(
-    //             SnackBar(
-    //               content: Text(response['message']),
-    //               backgroundColor: Colors.green,
-    //             ),
-    //           );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connexion échouée'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Verification()),
-    );
-    //         }
-    //       }
-    //     } catch (e) {
-    //       print(e);
-    //       _showErrorSnackBar('Erreur de connexion: ${e.toString()}');
-
-    //       if (mounted) {
-    //         ScaffoldMessenger.of(context).showSnackBar(
-    //           const SnackBar(
-    //             content: Text('Connexion échouée'),
-    //             backgroundColor: Colors.red,
-    //           ),
-    //         );
-    //       }
-
-    //       setState(() {
-    //         _isLoading = false;
-    //       });
-    //     }
-    //   }
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -118,6 +120,37 @@ class _LoginState extends State<Login> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
+
+                  // Role Selection
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedRole,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'patient',
+                            child: Text('Patient'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'doctor',
+                            child: Text('Médecin'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRole = value!;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Login Form
                   Container(

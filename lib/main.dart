@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/auth/onboarding.dart';
+import 'package:frontend/auth/login.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,7 +33,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
       ),
       debugShowCheckedModeBanner: false,
-      home: const Onboarding(),
+      home: const Login(),
     );
   }
 }
