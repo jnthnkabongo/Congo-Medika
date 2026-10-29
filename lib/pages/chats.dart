@@ -255,7 +255,7 @@ class _ChatsState extends State<Chats> {
                     );
 
                 if (mounted) {
-                  final meetingId = meeting['id'];
+                  final meetingId = meeting['meetingId'];
                   if (meetingId != null) {
                     // Récupérer le token Meet SaaS de l'utilisateur
                     final meetSaaSToken = await AuthService.getDonneesUser(
