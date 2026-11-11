@@ -7,13 +7,13 @@ import 'package:frontend/services/auth_service.dart';
 class MeetSaaSService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.89.126:3001/api/meet-saas';
+      return 'http://192.168.103.126:3001/api/meet-saas';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.89.126:3001/api/meet-saas';
+      return 'http://192.168.103.126:3001/api/meet-saas';
     } else if (Platform.isIOS) {
-      return 'http://192.168.89.126:3001/api/meet-saas';
+      return 'http://192.168.103.126:3001/api/meet-saas';
     }
-    return 'http://192.168.1.7:3001/api/meet-saas';
+    return 'http://192.168.103.126:3001/api/meet-saas';
   }
 
   static Future<Map<String, dynamic>> createMeetingForTeleconsultation(

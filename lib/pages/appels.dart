@@ -13,7 +13,7 @@ class _AppelsState extends State<Appels> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -34,7 +34,7 @@ class _AppelsState extends State<Appels> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.person, color: Color(0xFF95057B)),
+              child: const Icon(Icons.person, color: Color(0xFF8D3188)),
             ),
           ],
         ),

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/patients_service.dart';
+import 'package:frontend/services/teleconsultations_service.dart';
+import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/pages/chats.dart';
 
 class ChatsAdmin extends StatefulWidget {
   const ChatsAdmin({super.key});
@@ -9,48 +13,105 @@ class ChatsAdmin extends StatefulWidget {
 
 class _ChatsAdminState extends State<ChatsAdmin> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'text': 'Bonjour, comment puis-je vous aider aujourd\'hui?',
-      'isSent': false,
-      'time': '10:30',
-    },
-    {
-      'text': 'Je voudrais prendre rendez-vous pour une consultation.',
-      'isSent': true,
-      'time': '10:32',
-    },
-    {
-      'text': 'Bien sûr, quelle date vous conviendrait le mieux?',
-      'isSent': false,
-      'time': '10:33',
-    },
-    {'text': 'Demain à 14h si possible.', 'isSent': true, 'time': '10:35'},
-    {
-      'text':
-          'Parfait, je vous note pour demain à 14h. N\'oubliez pas d\'apporter vos documents médicaux.',
-      'isSent': false,
-      'time': '10:36',
-    },
-  ];
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _patients = [];
+  List<Map<String, dynamic>> _filteredPatients = [];
+  bool _isLoadingPatients = true;
+  bool _isCreatingTeleconsultation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPatients();
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
+  Future<void> _loadPatients() async {
+    try {
+      final patients = await PatientsService.getPatients();
       setState(() {
-        _messages.add({
-          'text': _messageController.text.trim(),
-          'isSent': true,
-          'time':
-              '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-        });
+        _patients = patients;
+        _filteredPatients = patients;
+        _isLoadingPatients = false;
       });
-      _messageController.clear();
+    } catch (e) {
+      setState(() {
+        _isLoadingPatients = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _filterPatients(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredPatients = _patients;
+      } else {
+        _filteredPatients = _patients.where((patient) {
+          final fullName = '${patient['firstName']} ${patient['lastName']}'
+              .toLowerCase();
+          final email = patient['email'].toLowerCase();
+          return fullName.contains(query.toLowerCase()) ||
+              email.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _startConversation(Map<String, dynamic> patient) async {
+    setState(() {
+      _isCreatingTeleconsultation = true;
+    });
+
+    try {
+      // Récupérer l'ID du médecin connecté
+      final user = await AuthService.getDonneesUser(AuthService.userKey);
+      final doctorId = user?['id'] ?? user?['sub'];
+
+      if (doctorId == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      // Créer une téléconsultation
+      final teleconsultation =
+          await TeleconsultationsService.createTeleconsultation(
+            appointmentId: 1, // ID fictif pour la démo
+            patientId: int.parse(patient['id'].toString()),
+            doctorId: int.parse(doctorId.toString()),
+          );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Chats(
+              roomId: teleconsultation['roomId'],
+              teleconsultationId: teleconsultation['id'],
+              doctorName: '${user['firstName']} ${user['lastName']}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      setState(() {
+        _isCreatingTeleconsultation = false;
+      });
     }
   }
 
@@ -59,7 +120,7 @@ class _ChatsAdminState extends State<ChatsAdmin> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -67,160 +128,129 @@ class _ChatsAdminState extends State<ChatsAdmin> {
             Navigator.pop(context);
           },
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.person, color: Color(0xFF95057B)),
-            ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dr. Jean-Pierre Kabongo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'En ligne',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
+        title: const Text(
+          'Sélectionner un patient',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(
-                  message['text'] as String,
-                  message['isSent'] as bool,
-                  message['time'] as String,
-                );
-              },
-            ),
-          ),
+          // Barre de recherche
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un patient...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF8D3188)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+                filled: true,
+                fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: _filterPatients,
             ),
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.mic),
-                    onPressed: () {},
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Écrivez votre message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+          ),
+          // Liste des patients
+          Expanded(
+            child: _isLoadingPatients
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredPatients.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun patient trouvé',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
                     ),
-                    onSubmitted: (_) => _sendMessage(),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _filteredPatients.length,
+                    itemBuilder: (context, index) {
+                      final patient = _filteredPatients[index];
+                      return _buildPatientCard(patient);
+                    },
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF95057B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageBubble(String text, bool isSent, String time) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: isSent
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          Container(
-            constraints: const BoxConstraints(maxWidth: 280),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSent ? const Color(0xFF95057B) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+  Widget _buildPatientCard(Map<String, dynamic> patient) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: const Color(0xFF8D3188),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Center(
             child: Text(
-              text,
-              style: TextStyle(
-                color: isSent ? Colors.white : Colors.black87,
-                fontSize: 15,
+              '${patient['firstName'][0]}${patient['lastName'][0]}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-        ],
+        ),
+        title: Text(
+          '${patient['firstName']} ${patient['lastName']}',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              patient['email'],
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              patient['phone'] ?? 'Non renseigné',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        trailing: _isCreatingTeleconsultation
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : IconButton(
+                icon: const Icon(Icons.chat, color: Color(0xFF8D3188)),
+                onPressed: () => _startConversation(patient),
+              ),
       ),
     );
   }

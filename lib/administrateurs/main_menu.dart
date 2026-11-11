@@ -110,7 +110,7 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF95057B).withValues(alpha: 0.1)
+              ? const Color(0xFF8D3188).withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(15),
         ),
@@ -123,7 +123,7 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
                 isSelected ? selectedIcon : icon,
                 key: ValueKey(isSelected ? selectedIcon : icon),
                 color: isSelected
-                    ? const Color(0xFF95057B)
+                    ? const Color(0xFF8D3188)
                     : Colors.grey.shade600,
                 size: 20,
               ),
@@ -133,7 +133,7 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
               duration: const Duration(milliseconds: 300),
               style: TextStyle(
                 color: isSelected
-                    ? const Color(0xFF95057B)
+                    ? const Color(0xFF8D3188)
                     : Colors.grey.shade600,
                 fontSize: isSelected ? 12 : 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,

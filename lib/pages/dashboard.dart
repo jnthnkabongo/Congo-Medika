@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/appointments_service.dart';
+import 'dart:convert';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -12,6 +14,7 @@ class _DashboardState extends State<Dashboard> {
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
   String? _errorMessage;
+  List<Map<String, dynamic>> _todaysAppointments = [];
 
   @override
   void initState() {
@@ -57,6 +60,9 @@ class _DashboardState extends State<Dashboard> {
         return;
       }
 
+      // Charger les rendez-vous du jour
+      await _loadTodaysAppointments();
+
       setState(() {
         _isLoading = false;
         _userData = userData;
@@ -66,6 +72,40 @@ class _DashboardState extends State<Dashboard> {
         _isLoading = false;
         _errorMessage = 'Erreur lors du chargement des données: $e';
       });
+    }
+  }
+
+  Future<void> _loadTodaysAppointments() async {
+    try {
+      final appointments = await AppointmentsService.getUserAppointments();
+      final today = DateTime.now();
+      final todayStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      // Filtrer les rendez-vous du jour
+      _todaysAppointments = appointments.where((apt) {
+        try {
+          final aptDate = apt['appointmentDate']?.toString() ?? '';
+          // Essayer de parser la date pour être sûr
+          if (aptDate.contains('T')) {
+            final datePart = aptDate.split('T')[0];
+            return datePart == todayStr;
+          }
+          return aptDate.startsWith(todayStr) || aptDate.contains(todayStr);
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+
+      // Trier par heure de début
+      _todaysAppointments.sort((a, b) {
+        final timeA = a['startTime']?.toString() ?? '';
+        final timeB = b['startTime']?.toString() ?? '';
+        return timeA.compareTo(timeB);
+      });
+    } catch (e) {
+      // Erreur silencieuse pour ne pas bloquer le dashboard
+      _todaysAppointments = [];
     }
   }
 
@@ -90,7 +130,7 @@ class _DashboardState extends State<Dashboard> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,14 +144,45 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
 
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+            GestureDetector(
+              onTap: () {
+                // Naviguer vers la page profil ou paramètres
+                Navigator.pushNamed(context, '/parametres');
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  image:
+                      _userData != null &&
+                          _userData!['avatar'] != null &&
+                          _userData!['avatar'].toString().isNotEmpty
+                      ? DecorationImage(
+                          image:
+                              _userData!['avatar'].toString().startsWith(
+                                'data:',
+                              )
+                              ? MemoryImage(
+                                  base64Decode(
+                                    _userData!['avatar'].toString().split(
+                                      ',',
+                                    )[1],
+                                  ),
+                                )
+                              : NetworkImage(_userData!['avatar'].toString()),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child:
+                    (_userData == null ||
+                        _userData!['avatar'] == null ||
+                        _userData!['avatar'].toString().isEmpty)
+                    ? const Icon(Icons.person, color: Color(0xFF8D3188))
+                    : null,
               ),
-              child: const Icon(Icons.person, color: Color(0xFF95057B)),
             ),
           ],
         ),
@@ -149,7 +220,7 @@ class _DashboardState extends State<Dashboard> {
                     padding: const EdgeInsets.all(15),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF95057B), Color(0xFF95057B)],
+                        colors: [Color(0xFF8D3188), Color(0xFF8D3188)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -209,7 +280,7 @@ class _DashboardState extends State<Dashboard> {
                                           'Bienvenu(e) sur Congo Medika !',
                                           style: TextStyle(
                                             fontSize: 16,
-                                            color: Color(0xFF95057B),
+                                            color: Colors.white,
                                             fontWeight: FontWeight.w500,
                                           ),
                                           overflow: TextOverflow.ellipsis,
@@ -251,7 +322,7 @@ class _DashboardState extends State<Dashboard> {
                                       'Votre santé, notre priorité',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Color(0xFF95057B),
+                                        color: Colors.white,
                                         fontStyle: FontStyle.italic,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -284,48 +355,270 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   SizedBox(height: 24),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Consultations',
-                          '12',
-                          Icons.local_hospital,
-                          Colors.white,
+                  // Card horaire du jour - Style Teams
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Téléconsultation',
-                          '8',
-                          Icons.video_call,
-                          Colors.white,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Color(
+                                    0xFF8D3188,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.calendar_today,
+                                  color: Color(0xFF8D3188),
+                                  size: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Aujourd\'hui',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[900],
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatDate(DateTime.now()),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Color(
+                                    0xFF8D3188,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  '${_todaysAppointments.length} RDV',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF8D3188),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Rendez-vous',
-                          '5',
-                          Icons.calendar_today,
-                          Colors.white,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Médicaments livrés',
-                          '23',
-                          Icons.medical_services,
-                          Colors.white,
-                        ),
-                      ),
-                    ],
+                        Divider(height: 1, color: Colors.grey[200]),
+                        // Liste des rendez-vous
+                        if (_todaysAppointments.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.event_available,
+                                    size: 48,
+                                    color: Colors.grey[300],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Aucun rendez-vous aujourd\'hui',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          ..._todaysAppointments.map((apt) {
+                            final startTime = _formatTime(apt['startTime']);
+                            final endTime = _formatTime(apt['endTime']);
+                            final reason =
+                                apt['reason']?.toString() ?? 'Rendez-vous';
+                            final status =
+                                apt['status']?.toString() ?? 'pending';
+                            final doctor =
+                                apt['doctor'] as Map<String, dynamic>?;
+                            final doctorName = doctor != null
+                                ? '${doctor['firstName'] ?? ''} ${doctor['lastName'] ?? ''}'
+                                      .trim()
+                                : 'Médecin';
+                            final patient =
+                                apt['patient'] as Map<String, dynamic>?;
+                            final patientName = patient != null
+                                ? '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
+                                      .trim()
+                                : 'Patient';
+                            final statusColor = _getStatusColor(status);
+                            final statusBgColor = statusColor.withValues(
+                              alpha: 0.1,
+                            );
+
+                            return Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    // Timeline indicator
+                                    Column(
+                                      children: [
+                                        Container(
+                                          width: 4,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        Container(
+                                          width: 2,
+                                          height: 40,
+                                          color: Colors.grey[300],
+                                        ),
+                                        Container(
+                                          width: 4,
+                                          height: 4,
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Time column
+                                    Container(
+                                      width: 70,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.grey[200]!,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            startTime,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[900],
+                                            ),
+                                          ),
+                                          Text(
+                                            endTime,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            reason,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[900],
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '$doctorName • $patientName',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey[600],
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Status badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusBgColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _formatStatus(status),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   ),
                   SizedBox(height: 24),
 
@@ -396,59 +689,104 @@ class _DashboardState extends State<Dashboard> {
         // TODO: Implémenter la logique de création de consultation
         _createUrgence();
       },
-      backgroundColor: const Color(0xFF95057B),
+      backgroundColor: const Color(0xFF8D3188),
       child: const Icon(Icons.emergency, color: Colors.white),
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Color(0xFF95057B),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.white)),
-        ],
-      ),
-    );
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+      case 'confirme':
+        return Colors.green;
+      case 'pending':
+      case 'en_attente':
+        return Colors.orange;
+      case 'cancelled':
+      case 'annule':
+        return Colors.red;
+      case 'completed':
+      case 'termine':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+      case 'confirme':
+        return 'Confirmé';
+      case 'pending':
+      case 'en_attente':
+        return 'En attente';
+      case 'cancelled':
+      case 'annule':
+        return 'Annulé';
+      case 'completed':
+      case 'termine':
+        return 'Terminé';
+      default:
+        return status;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatTime(dynamic time) {
+    if (time == null) return '--:--';
+
+    // Si c'est déjà une string au format HH:MM
+    if (time is String) {
+      // Vérifier si c'est au format HH:MM ou HH:MM:SS
+      final timeRegex = RegExp(r'^\d{2}:\d{2}(:\d{2})?$');
+      if (timeRegex.hasMatch(time)) {
+        // Extraire juste HH:MM
+        return time.length >= 5 ? time.substring(0, 5) : time;
+      }
+
+      // Essayer de parser comme timestamp
+      final parsed = int.tryParse(time);
+      if (parsed != null) {
+        return _formatTime(parsed);
+      }
+
+      return time;
+    }
+
+    // Si c'est un nombre (timestamp Unix)
+    if (time is int || time is double) {
+      final timestamp = time is int ? time : time.toInt();
+      final isMilliseconds = timestamp > 1000000000000;
+      final dateTime = isMilliseconds
+          ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+          : DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
+
+    // Si c'est un DateTime
+    if (time is DateTime) {
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    }
+
+    return '--:--';
   }
 
   Widget _buildActivityItem(

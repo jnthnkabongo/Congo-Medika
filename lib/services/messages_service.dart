@@ -1,29 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/http_interceptor.dart';
 
 class MessagesService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.89.126:3001/api/messages';
+      return 'http://192.168.103.126:3001/api/messages';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.89.126:3001/api/messages';
+      return 'http://192.168.103.126:3001/api/messages';
     } else if (Platform.isIOS) {
-      return 'http://192.168.89.126:3001/api/messages';
+      return 'http://192.168.103.126:3001/api/messages';
     }
-    return 'http://192.168.89.126:3001/api/messages';
+    return 'http://192.168.103.126:3001/api/messages';
   }
 
   static Future<List<Map<String, dynamic>>> getMessagesByRoomId(
     String roomId,
   ) async {
     try {
-      final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(
+      final response = await HttpInterceptor.get(
         Uri.parse('$baseUrl?roomId=$roomId'),
-        headers: headers.map((key, value) => MapEntry(key, value.toString())),
       );
 
       if (response.statusCode == 200) {

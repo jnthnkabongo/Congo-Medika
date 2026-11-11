@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/services/websocket_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/messages_service.dart';
-import 'package:frontend/services/meet_saas_service.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'appel_en_cours.dart';
 
 class Chats extends StatefulWidget {
   final String roomId;
@@ -11,6 +10,8 @@ class Chats extends StatefulWidget {
   final String doctorName;
   final String? meetSaaSToken;
   final String? organizationId;
+  final int? doctorId;
+  final int? patientId;
 
   const Chats({
     super.key,
@@ -19,6 +20,8 @@ class Chats extends StatefulWidget {
     this.doctorName = 'Dr. Jean-Pierre Kabongo',
     this.meetSaaSToken,
     this.organizationId,
+    this.doctorId,
+    this.patientId,
   });
 
   @override
@@ -60,9 +63,6 @@ class _ChatsState extends State<Chats> {
         return;
       }
 
-      print('Token récupéré: ${token.substring(0, 20)}...');
-      print('Room ID: ${widget.roomId}');
-
       setState(() {
         _userRole = user['role'];
       });
@@ -72,7 +72,6 @@ class _ChatsState extends State<Chats> {
 
       // Écouter les événements
       _wsService.onConnectionChanged.listen((connected) {
-        print('Statut WebSocket: $connected');
         setState(() {
           _isConnected = connected;
           _isLoading = false;
@@ -85,7 +84,6 @@ class _ChatsState extends State<Chats> {
       });
 
       _wsService.onMessage.listen((message) {
-        print('Message reçu: $message');
         setState(() {
           _messages.add(message);
         });
@@ -93,7 +91,6 @@ class _ChatsState extends State<Chats> {
       });
 
       _wsService.onError.listen((error) {
-        print('Erreur WebSocket: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -105,7 +102,6 @@ class _ChatsState extends State<Chats> {
       });
 
       _wsService.onRoomJoined.listen((roomId) async {
-        print('Room rejointe: $roomId');
         // Charger l'historique des messages
         try {
           final history = await MessagesService.getMessagesByRoomId(roomId);
@@ -116,7 +112,7 @@ class _ChatsState extends State<Chats> {
             _scrollToBottom();
           }
         } catch (e) {
-          print('Erreur lors du chargement de l\'historique: $e');
+          debugPrint('[Chats] ERREUR chargement historique: $e');
         }
       });
 
@@ -170,6 +166,60 @@ class _ChatsState extends State<Chats> {
     }
   }
 
+  Future<void> _startCall({required bool video}) async {
+    try {
+      final user = await AuthService.getDonneesUser('user');
+      final currentUserId = user != null
+          ? (user['id'] is String ? int.parse(user['id']) : user['id'])
+          : null;
+
+      int? targetUserId;
+      String targetUserRole;
+
+      if (currentUserId == widget.doctorId) {
+        targetUserId = widget.patientId;
+        targetUserRole = 'patient';
+      } else {
+        targetUserId = widget.doctorId;
+        targetUserRole = 'doctor';
+      }
+
+      if (targetUserId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Impossible de déterminer le destinataire de l\'appel',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AppelEnCours(
+            teleconsultationId: widget.teleconsultationId,
+            targetUserId: targetUserId.toString(),
+            targetUserRole: targetUserRole,
+            isCaller: true,
+            callType: video ? 'video' : 'audio',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -183,7 +233,7 @@ class _ChatsState extends State<Chats> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -194,15 +244,15 @@ class _ChatsState extends State<Chats> {
         title: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.person, color: Color(0xFF95057B)),
+              child: const Icon(Icons.person, color: Color(0xFF8D3188)),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -210,7 +260,7 @@ class _ChatsState extends State<Chats> {
                   widget.doctorName,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -227,7 +277,7 @@ class _ChatsState extends State<Chats> {
                     const SizedBox(width: 6),
                     Text(
                       _isConnected ? 'En ligne' : 'Hors ligne',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: Colors.white70, fontSize: 10),
                     ),
                   ],
                 ),
@@ -238,195 +288,11 @@ class _ChatsState extends State<Chats> {
         actions: [
           IconButton(
             icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: () async {
-              // Créer une réunion audio Meet SaaS et ouvrir dans le navigateur
-              try {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Création de l\'appel audio...'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-
-                final meeting =
-                    await MeetSaaSService.createMeetingForTeleconsultation(
-                      widget.teleconsultationId,
-                      mode: 'AUDIO',
-                    );
-
-                if (mounted) {
-                  final meetingId = meeting['meetingId'];
-                  if (meetingId != null) {
-                    // Récupérer le token Meet SaaS de l'utilisateur
-                    final meetSaaSToken = await AuthService.getDonneesUser(
-                      'meetSaaSToken',
-                    );
-
-                    if (meetSaaSToken != null) {
-                      // Construire l'URL Meet SaaS avec le meetingId et le token
-                      final meetUrl =
-                          'https://stax.verstands.dev/join/$meetingId?token=$meetSaaSToken';
-
-                      print('Attempting to launch URL: $meetUrl');
-                      final uri = Uri.parse(meetUrl);
-
-                      try {
-                        final canLaunch = await canLaunchUrl(uri);
-                        print('canLaunchUrl result: $canLaunch');
-
-                        if (canLaunch) {
-                          final launched = await launchUrl(uri);
-                          print('launchUrl result: $launched');
-                        } else {
-                          print('canLaunchUrl returned false');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Erreur: Impossible d\'ouvrir le navigateur.',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        print('Error launching URL: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Erreur: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Erreur: Token Meet SaaS non disponible. Veuillez vous reconnecter.',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Erreur: Impossible de créer le meeting.',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Erreur: ${e.toString().replaceAll('Exception: ', '')}',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
+            onPressed: () => _startCall(video: false),
           ),
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () async {
-              // Créer une réunion vidéo Meet SaaS et ouvrir dans le navigateur
-              try {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Création de l\'appel vidéo...'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-
-                final meeting =
-                    await MeetSaaSService.createMeetingForTeleconsultation(
-                      widget.teleconsultationId,
-                      mode: 'VIDEO',
-                    );
-
-                if (mounted) {
-                  final meetingId = meeting['meetingId'];
-                  if (meetingId != null) {
-                    // Récupérer le token Meet SaaS de l'utilisateur
-                    final meetSaaSToken = await AuthService.getDonneesUser(
-                      'meetSaaSToken',
-                    );
-
-                    if (meetSaaSToken != null) {
-                      // Construire l'URL Meet SaaS avec le meetingId et le token
-                      final meetUrl =
-                          'https://stax.verstands.dev/join/$meetingId?token=$meetSaaSToken';
-
-                      print('Attempting to launch URL: $meetUrl');
-                      final uri = Uri.parse(meetUrl);
-
-                      try {
-                        final canLaunch = await canLaunchUrl(uri);
-                        print('canLaunchUrl result: $canLaunch');
-
-                        if (canLaunch) {
-                          final launched = await launchUrl(uri);
-                          print('launchUrl result: $launched');
-                        } else {
-                          print('canLaunchUrl returned false');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Erreur: Impossible d\'ouvrir le navigateur.',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        print('Error launching URL: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Erreur: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Erreur: Token Meet SaaS non disponible. Veuillez vous reconnecter.',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Erreur: Impossible de créer le meeting.',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Erreur: ${e.toString().replaceAll('Exception: ', '')}',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
+            onPressed: () => _startCall(video: true),
           ),
         ],
       ),
@@ -530,7 +396,7 @@ class _ChatsState extends State<Chats> {
                 const SizedBox(width: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF95057B),
+                    color: const Color(0xFF8D3188),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: IconButton(
@@ -571,9 +437,9 @@ class _ChatsState extends State<Chats> {
         children: [
           Container(
             constraints: const BoxConstraints(maxWidth: 280),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isSent ? const Color(0xFF95057B) : Colors.white,
+              color: isSent ? const Color(0xFF8D3188) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -587,12 +453,12 @@ class _ChatsState extends State<Chats> {
               text,
               style: TextStyle(
                 color: isSent ? Colors.white : Colors.black87,
-                fontSize: 15,
+                fontSize: 12,
               ),
             ),
           ),
           const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          Text(time, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
         ],
       ),
     );

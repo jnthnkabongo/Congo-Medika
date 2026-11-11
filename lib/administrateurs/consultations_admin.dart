@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/teleconsultations_service.dart';
+import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/pages/chats.dart';
 
 class ConsultationsAdmin extends StatefulWidget {
   const ConsultationsAdmin({super.key});
@@ -9,80 +12,124 @@ class ConsultationsAdmin extends StatefulWidget {
 
 class _ConsultationsAdminState extends State<ConsultationsAdmin> {
   String _selectedFilter = 'Tous';
+  List<Map<String, dynamic>> _teleconsultations = [];
+  bool _isLoading = true;
 
-  final List<String> _filters = ['Tous', 'Confirmé', 'En attente', 'Annulé'];
+  final List<String> _filters = [
+    'Tous',
+    'waiting',
+    'active',
+    'completed',
+    'cancelled',
+  ];
 
-  void _showConsultationDetails(Map<String, dynamic> consultation) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Détails consultation',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF95057B),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildDetailRow('Patient', consultation['patient']),
-              _buildDetailRow('Médecin', consultation['doctor']),
-              _buildDetailRow('Spécialité', consultation['specialty']),
-              _buildDetailRow('Date', consultation['date']),
-              _buildDetailRow('Statut', consultation['status']),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF95057B),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        'Modifier',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
-                      ),
-                      child: const Text(
-                        'Annuler',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  @override
+  void initState() {
+    super.initState();
+    _loadTeleconsultations();
+  }
+
+  Future<void> _loadTeleconsultations() async {
+    try {
+      final teleconsultations =
+          await TeleconsultationsService.getDoctorTeleconsultations();
+      setState(() {
+        _teleconsultations = teleconsultations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
-      },
-    );
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredTeleconsultations {
+    if (_selectedFilter == 'Tous') {
+      return _teleconsultations;
+    }
+    return _teleconsultations
+        .where((tc) => tc['status'] == _selectedFilter)
+        .toList();
+  }
+
+  void _openChat(Map<String, dynamic> consultation) async {
+    final user = await AuthService.getDonneesUser(AuthService.userKey);
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Chats(
+            roomId: consultation['roomId'],
+            teleconsultationId: consultation['id'],
+            doctorName: '${user['firstName']} ${user['lastName']}',
+          ),
+        ),
+      );
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Non renseignée';
+    DateTime dateTime;
+    if (date is String) {
+      dateTime = DateTime.parse(date);
+    } else if (date is DateTime) {
+      dateTime = date;
+    } else {
+      return 'Non renseignée';
+    }
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _getStatusIcon(String status) {
+    switch (status) {
+      case 'waiting':
+        return 'En attente';
+      case 'active':
+        return 'En cours';
+      case 'completed':
+        return 'Terminé';
+      case 'cancelled':
+        return 'Annulé';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'waiting':
+        return Colors.orange;
+      case 'active':
+        return Colors.blue;
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIconData(String status) {
+    switch (status) {
+      case 'waiting':
+        return Icons.pending;
+      case 'active':
+        return Icons.play_circle;
+      case 'completed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
   }
 
   @override
@@ -90,7 +137,7 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
           'Gestion des consultations',
@@ -101,139 +148,84 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF95057B).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _filteredTeleconsultations.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search, color: Color(0xFF95057B)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher une consultation...',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
+                  Icon(Icons.inbox, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucune consultation',
+                    style: TextStyle(color: Colors.grey[500]),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadTeleconsultations,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
 
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _filters.map((filter) {
-                  final isSelected = _selectedFilter == filter;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(filter),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedFilter = filter;
-                        });
-                      },
-                      selectedColor: const Color(0xFF95057B),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _filters.map((filter) {
+                          final isSelected = _selectedFilter == filter;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(filter),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedFilter = filter;
+                                });
+                              },
+                              selectedColor: const Color(0xFF8D3188),
+                              checkmarkColor: Colors.white,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                  );
-                }).toList(),
+                    const SizedBox(height: 20),
+
+                    ..._filteredTeleconsultations.map((tc) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildConsultationCardFromData(tc),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            _buildConsultationCard(
-              'Jean Mukendi',
-              'Dr. Jean-Pierre Kabongo',
-              'Médecin Généraliste',
-              'Aujourd\'hui, 10:30',
-              'Confirmé',
-              Icons.check_circle,
-              Colors.green,
-            ),
-            const SizedBox(height: 12),
-
-            _buildConsultationCard(
-              'Marie Lumbu',
-              'Dr. Marie-Claire Mbombo',
-              'Cardiologue',
-              'Aujourd\'hui, 14:00',
-              'En attente',
-              Icons.pending,
-              Colors.orange,
-            ),
-            const SizedBox(height: 12),
-
-            _buildConsultationCard(
-              'Pierre Mwamba',
-              'Dr. François Mutombo',
-              'Pédiatre',
-              'Demain, 09:00',
-              'Confirmé',
-              Icons.check_circle,
-              Colors.green,
-            ),
-            const SizedBox(height: 12),
-
-            _buildConsultationCard(
-              'Anne Mbombo',
-              'Dr. Anne-Marie Lumbu',
-              'Dermatologue',
-              '22 Jan 2026, 11:30',
-              'Programmé',
-              Icons.calendar_today,
-              Colors.blue,
-            ),
-            const SizedBox(height: 12),
-
-            _buildConsultationCard(
-              'François Mutsh',
-              'Dr. Pierre Mwamba',
-              'Médecin Généraliste',
-              '28 Jan 2026, 16:00',
-              'Annulé',
-              Icons.cancel,
-              Colors.red,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildConsultationCard(
-    String patientName,
-    String doctorName,
-    String specialty,
-    String dateTime,
-    String status,
-    IconData statusIcon,
-    Color statusColor,
-  ) {
+  Widget _buildConsultationCardFromData(Map<String, dynamic> teleconsultation) {
+    final patient = teleconsultation['patient'];
+    final appointment = teleconsultation['appointment'];
+    final status = teleconsultation['status'];
+    final statusColor = _getStatusColor(status);
+    final statusIcon = _getStatusIconData(status);
+    final statusText = _getStatusIcon(status);
+
     return InkWell(
       onTap: () {
-        _showConsultationDetails({
-          'patient': patientName,
-          'doctor': doctorName,
-          'specialty': specialty,
-          'date': dateTime,
-          'status': status,
-        });
+        _openChat(teleconsultation);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -257,32 +249,32 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF95057B).withValues(alpha: 0.1),
+                    color: const Color(0xFF8D3188).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.local_hospital,
-                    color: Color(0xFF95057B),
-                    size: 28,
+                    color: Color(0xFF8D3188),
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        patientName,
+                        '${patient['firstName']} ${patient['lastName']}',
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        doctorName,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        patient['email'],
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -301,9 +293,9 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
                       Icon(statusIcon, color: statusColor, size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        status,
+                        statusText,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: statusColor,
                         ),
@@ -316,51 +308,23 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey[500]),
+                Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
                 const SizedBox(width: 4),
                 Text(
-                  dateTime,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  _formatDate(appointment['appointmentDate']),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.medical_services, size: 14, color: Colors.grey[500]),
+                Icon(Icons.medical_services, size: 12, color: Colors.grey[500]),
                 const SizedBox(width: 4),
                 Text(
-                  specialty,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  appointment['reason'] ?? 'Non renseigné',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-          ),
-        ],
       ),
     );
   }

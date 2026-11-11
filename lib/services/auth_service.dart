@@ -9,13 +9,13 @@ class AuthService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.89.126:3001/api/auth';
+      return 'http://192.168.103.126:3001/api/auth';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.89.126:3001/api/auth';
+      return 'http://192.168.103.126:3001/api/auth';
     } else if (Platform.isIOS) {
-      return 'http://192.168.89.126:3001/api/auth';
+      return 'http://192.168.103.126:3001/api/auth';
     }
-    return 'http://192.168.89.126:3001/api/auth';
+    return 'http://192.168.103.126:3001/api/auth';
   }
 
   static const String _tokenKey = 'auth_token';
@@ -54,11 +54,11 @@ class AuthService {
           'phone': phone.trim(),
           'role': role,
           'gender': gender,
-          if (address != null) 'address': address,
-          if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
-          if (specialtyId != null) 'specialtyId': specialtyId,
-          if (licenseNumber != null) 'licenseNumber': licenseNumber,
-          if (bio != null) 'bio': bio,
+          'address': address,
+          'dateOfBirth': dateOfBirth,
+          'specialtyId': specialtyId,
+          'licenseNumber': licenseNumber,
+          'bio': bio,
         }),
       );
 
@@ -199,6 +199,44 @@ class AuthService {
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  static Future<bool> isTokenExpired() async {
+    final token = await getToken();
+    if (token == null) return true;
+
+    try {
+      // Décoder le JWT pour vérifier l'expiration
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+
+      final payload = parts[1];
+      // Base64 decode avec padding
+      final normalizedPayload = payload
+          .replaceAll('-', '+')
+          .replaceAll('_', '/');
+      final paddedPayload = normalizedPayload.padRight(
+        normalizedPayload.length + (4 - normalizedPayload.length % 4) % 4,
+        '=',
+      );
+      final decoded = utf8.decode(base64.decode(paddedPayload));
+      final payloadData = jsonDecode(decoded) as Map<String, dynamic>;
+
+      final exp = payloadData['exp'];
+      if (exp == null) return true;
+
+      final expiryTime = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+      return DateTime.now().isAfter(expiryTime);
+    } catch (e) {
+      return true;
+    }
+  }
+
+  static Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_userKey);
   }
 
   static Future<String?> getRefreshToken() async {

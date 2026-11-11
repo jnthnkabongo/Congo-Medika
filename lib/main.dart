@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/auth/onboarding.dart';
 import 'package:frontend/auth/login.dart';
+import 'package:frontend/widgets/call_notification_manager.dart';
+import 'package:frontend/services/http_interceptor.dart';
+
+// GlobalKey pour le Navigator global
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
+  // Configurer le callback pour la redirection en cas d'expiration du token
+  onAuthExpired = () {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const Login()),
+        (route) => false,
+      );
+    }
+  };
   runApp(const MyApp());
 }
 
@@ -33,7 +47,10 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
       ),
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       home: const Login(),
+      builder: (context, child) =>
+          CallNotificationManager(child: child ?? const SizedBox.shrink()),
     );
   }
 }

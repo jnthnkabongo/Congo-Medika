@@ -37,28 +37,28 @@ class _OnboardingState extends State<Onboarding> {
       title: 'Bienvenue dans Congo Medika',
       description: 'Votre plateforme de santé digitale au Congo',
       icon: Icons.local_pharmacy,
-      color: const Color(0xFF95057B),
+      color: const Color(0xFF8D3188),
     ),
     OnboardingItem(
       title: 'Consultations à domicile',
       description:
           'Des médecins et infirmiers qualifiés se déplacent chez vous en moins d\'une heure pour une prise en charge rapide et humaine.',
       icon: Icons.home_repair_service_outlined,
-      color: const Color(0xFF95057B),
+      color: const Color(0xFF8D3188),
     ),
     OnboardingItem(
       title: 'Pharmacie express et sécurisée',
       description:
           'Commandez vos ordonnances en ligne. Nous livrons vos produits depuis des officines partenaires accréditées.',
       icon: Icons.medical_information_outlined,
-      color: const Color(0xFF95057B),
+      color: const Color(0xFF8D3188),
     ),
     OnboardingItem(
       title: 'Téléconsultation & suivi',
       description:
           'Parlez à un professionnel de santé où que vous soyez, directement depuis votre téléphone ou votre ordinateur.',
       icon: Icons.video_call,
-      color: const Color(0xFF95057B),
+      color: const Color(0xFF8D3188),
     ),
   ];
 
@@ -121,7 +121,7 @@ class _OnboardingState extends State<Onboarding> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF95057B),
+                        backgroundColor: Color(0xFF8D3188),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -167,7 +167,7 @@ class _OnboardingState extends State<Onboarding> {
       height: 8,
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
-        color: _currentPage == index ? Color(0xFF95057B) : Colors.grey.shade300,
+        color: _currentPage == index ? Color(0xFF8D3188) : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(4),
       ),
     );
@@ -204,7 +204,7 @@ class OnboardingItemWidget extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.1),
+              color: item.color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(60),
             ),
             child: Icon(item.icon, size: 60, color: item.color),

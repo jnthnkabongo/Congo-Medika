@@ -1,19 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/http_interceptor.dart';
 
 class TeleconsultationsService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.89.126:3001/api/teleconsultations';
+      return 'http://192.168.103.126:3001/api/teleconsultations';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.89.126:3001/api/teleconsultations';
+      return 'http://192.168.103.126:3001/api/teleconsultations';
     } else if (Platform.isIOS) {
-      return 'http://192.168.89.126:3001/api/teleconsultations';
+      return 'http://192.168.103.126:3001/api/teleconsultations';
     }
-    return 'http://192.168.89.126:3001/api/teleconsultations';
+    return 'http://192.168.103.126:3001/api/teleconsultations';
   }
 
   // Créer une téléconsultation
@@ -23,10 +22,8 @@ class TeleconsultationsService {
     required int doctorId,
   }) async {
     try {
-      final headers = await AuthService.getAuthHeaders();
-      final response = await http.post(
+      final response = await HttpInterceptor.post(
         Uri.parse(baseUrl),
-        headers: headers,
         body: jsonEncode({
           'appointmentId': appointmentId,
           'patientId': patientId,
@@ -39,7 +36,10 @@ class TeleconsultationsService {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return data;
       } else {
-        throw Exception(data['message'] ?? 'Erreur lors de la création de la téléconsultation');
+        throw Exception(
+          data['message'] ??
+              'Erreur lors de la création de la téléconsultation',
+        );
       }
     } catch (e) {
       throw Exception('Erreur de connexion: $e');
@@ -47,20 +47,20 @@ class TeleconsultationsService {
   }
 
   // Récupérer les téléconsultations du patient
-  static Future<List<Map<String, dynamic>>> getPatientTeleconsultations() async {
+  static Future<List<Map<String, dynamic>>>
+  getPatientTeleconsultations() async {
     try {
-      final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/patient'),
-        headers: headers,
-      );
+      final response = await HttpInterceptor.get(Uri.parse('$baseUrl/patient'));
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(data);
       } else {
-        throw Exception(data['message'] ?? 'Erreur lors de la récupération des téléconsultations');
+        throw Exception(
+          data['message'] ??
+              'Erreur lors de la récupération des téléconsultations',
+        );
       }
     } catch (e) {
       throw Exception('Erreur de connexion: $e');
@@ -70,18 +70,17 @@ class TeleconsultationsService {
   // Récupérer les téléconsultations du docteur
   static Future<List<Map<String, dynamic>>> getDoctorTeleconsultations() async {
     try {
-      final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/doctor'),
-        headers: headers,
-      );
+      final response = await HttpInterceptor.get(Uri.parse('$baseUrl/doctor'));
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(data);
       } else {
-        throw Exception(data['message'] ?? 'Erreur lors de la récupération des téléconsultations');
+        throw Exception(
+          data['message'] ??
+              'Erreur lors de la récupération des téléconsultations',
+        );
       }
     } catch (e) {
       throw Exception('Erreur de connexion: $e');
@@ -91,11 +90,7 @@ class TeleconsultationsService {
   // Récupérer une téléconsultation par ID
   static Future<Map<String, dynamic>> getTeleconsultationById(String id) async {
     try {
-      final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/$id'),
-        headers: headers,
-      );
+      final response = await HttpInterceptor.get(Uri.parse('$baseUrl/$id'));
 
       final data = jsonDecode(response.body);
 

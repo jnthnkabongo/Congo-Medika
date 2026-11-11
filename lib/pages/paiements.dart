@@ -56,7 +56,7 @@ class _PaiementsState extends State<Paiements> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
           'Paiements',
@@ -76,7 +76,7 @@ class _PaiementsState extends State<Paiements> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF95057B), Color(0xFFB0209D)],
+                  colors: [Color(0xFF8D3188), Color(0xFFB0209D)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -90,10 +90,7 @@ class _PaiementsState extends State<Paiements> {
                     children: [
                       Text(
                         'Total dépensé',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                       SizedBox(height: 8),
                       Text(
@@ -135,7 +132,7 @@ class _PaiementsState extends State<Paiements> {
 
             ..._payments.map((payment) {
               return _buildPaymentCard(payment);
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -198,7 +195,7 @@ class _PaiementsState extends State<Paiements> {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF95057B),
+                  color: Color(0xFF8D3188),
                 ),
               ),
             ],
@@ -206,10 +203,7 @@ class _PaiementsState extends State<Paiements> {
           const SizedBox(height: 8),
           Text(
             payment['specialty'] as String,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Row(
@@ -218,20 +212,14 @@ class _PaiementsState extends State<Paiements> {
               const SizedBox(width: 4),
               Text(
                 payment['date'] as String,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
               const SizedBox(width: 16),
               Icon(Icons.payment, size: 14, color: Colors.grey[500]),
               const SizedBox(width: 4),
               Text(
                 payment['method'] as String,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -241,10 +229,7 @@ class _PaiementsState extends State<Paiements> {
             children: [
               Text(
                 'Réf: ${payment['reference']}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[400],
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
               ),
               Row(
                 children: [

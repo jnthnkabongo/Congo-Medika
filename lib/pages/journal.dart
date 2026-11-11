@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/calls_service.dart';
+import '../services/auth_service.dart';
+import 'dart:convert';
 
 class Journal extends StatefulWidget {
   const Journal({super.key});
@@ -8,12 +11,185 @@ class Journal extends StatefulWidget {
 }
 
 class _JournalState extends State<Journal> {
+  List<Map<String, dynamic>> _calls = [];
+  bool _isLoading = true;
+  String? _error;
+  String? _searchQuery;
+  String? _currentUserRole;
+  String? _currentUserId;
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCalls();
+  }
+
+  Future<void> _loadCalls() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final user = await AuthService.getDonneesUser('user');
+      setState(() {
+        _currentUserRole = user?['role'];
+        _currentUserId = user?['id']?.toString();
+        _userData = user;
+      });
+
+      final calls = await CallsService.getUserCalls();
+      setState(() {
+        _calls = calls;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _getFilteredCalls() {
+    if (_searchQuery == null || _searchQuery!.isEmpty) {
+      return _calls;
+    }
+
+    return _calls.where((call) {
+      final contactName = CallsService.getContactName(
+        call,
+        _currentUserRole,
+        _currentUserId,
+      );
+      return contactName.toLowerCase().contains(_searchQuery!.toLowerCase());
+    }).toList();
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupCallsByDate(
+    List<Map<String, dynamic>> calls,
+  ) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    for (final call in calls) {
+      final createdAtData = call['createdAt'];
+      DateTime createdAt;
+      if (createdAtData is DateTime) {
+        createdAt = createdAtData;
+      } else if (createdAtData is String) {
+        createdAt = DateTime.parse(createdAtData);
+      } else if (createdAtData is Map<String, dynamic>) {
+        final dateValue = createdAtData['date'];
+        if (dateValue is String) {
+          createdAt = DateTime.parse(dateValue);
+        } else {
+          continue;
+        }
+      } else {
+        continue;
+      }
+      final callDate = DateTime(createdAt.year, createdAt.month, createdAt.day);
+
+      String dateLabel;
+      if (callDate == today) {
+        dateLabel = 'Aujourd\'hui';
+      } else if (callDate == yesterday) {
+        dateLabel = 'Hier';
+      } else {
+        dateLabel =
+            '${createdAt.day} ${_getMonthName(createdAt.month)} ${createdAt.year}';
+      }
+
+      grouped.putIfAbsent(dateLabel, () => []);
+      grouped[dateLabel]!.add(call);
+    }
+
+    return grouped;
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Fév',
+      'Mar',
+      'Avr',
+      'Mai',
+      'Juin',
+      'Juil',
+      'Août',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Déc',
+    ];
+    return months[month - 1];
+  }
+
+  String _formatTime(dynamic dateTimeStr) {
+    DateTime dateTime;
+    if (dateTimeStr is DateTime) {
+      dateTime = dateTimeStr;
+    } else if (dateTimeStr is String) {
+      dateTime = DateTime.parse(dateTimeStr);
+    } else if (dateTimeStr is Map<String, dynamic>) {
+      final dateValue = dateTimeStr['date'];
+      if (dateValue is String) {
+        dateTime = DateTime.parse(dateValue);
+      } else {
+        return '--:--';
+      }
+    } else {
+      return '--:--';
+    }
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  IconData _getCallIcon(Map<String, dynamic> call) {
+    final direction = CallsService.getCallDirection(
+      call,
+      _currentUserRole,
+      _currentUserId,
+    );
+    final status = call['status'];
+
+    if (status == 'missed' || status == 'rejected') {
+      return Icons.call_missed;
+    } else if (direction == 'Appel sortant') {
+      return Icons.call_made;
+    } else {
+      return Icons.call_received;
+    }
+  }
+
+  Color _getStatusColor(dynamic status) {
+    if (status == null) return Colors.grey;
+    final statusStr = status.toString();
+    switch (statusStr.toLowerCase()) {
+      case 'calling':
+      case 'active':
+        return Colors.blue;
+      case 'accepted':
+      case 'completed':
+        return Colors.green;
+      case 'rejected':
+      case 'missed':
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF95057B),
+        backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -26,160 +202,136 @@ class _JournalState extends State<Journal> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/parametres');
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  image:
+                      _userData != null &&
+                          _userData!['avatar'] != null &&
+                          _userData!['avatar'].toString().isNotEmpty
+                      ? DecorationImage(
+                          image:
+                              _userData!['avatar'].toString().startsWith(
+                                'data:',
+                              )
+                              ? MemoryImage(
+                                  base64Decode(
+                                    _userData!['avatar'].toString().split(
+                                      ',',
+                                    )[1],
+                                  ),
+                                )
+                              : NetworkImage(_userData!['avatar'].toString()),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child:
+                    (_userData == null ||
+                        _userData!['avatar'] == null ||
+                        _userData!['avatar'].toString().isEmpty)
+                    ? const Icon(Icons.person, color: Color(0xFF8D3188))
+                    : null,
               ),
-              child: const Icon(Icons.person, color: Color(0xFF95057B)),
             ),
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF95057B).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search, color: const Color(0xFF95057B)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher dans le journal...',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erreur: $_error',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadCalls,
+                    child: const Text('Réessayer'),
                   ),
                 ],
               ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8D3188).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.search, color: const Color(0xFF8D3188)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Rechercher dans le journal...',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_getFilteredCalls().isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.phone_disabled,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Aucun appel enregistré',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ..._groupCallsByDate(_getFilteredCalls()).entries.map(
+                      (entry) => _buildJournalSection(entry.key, entry.value),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-
-            // Text(
-            //   'Journal d\'appels',
-            //   style: TextStyle(
-            //     fontSize: 18,
-            //     fontWeight: FontWeight.bold,
-            //     color: Colors.grey[800],
-            //   ),
-            // ),
-            const SizedBox(height: 16),
-
-            _buildJournalSection('Aujourd\'hui', [
-              _buildCallCard(
-                'Dr. Jean-Pierre Kabongo',
-                'Appel entrant',
-                '10:30',
-                '15 min',
-                'Répondu',
-                Icons.call_received,
-                Colors.green,
-              ),
-              _buildCallCard(
-                'Dr. Marie-Claire Mbombo',
-                'Appel sortant',
-                '09:15',
-                '8 min',
-                'Répondu',
-                Icons.call_made,
-                Colors.blue,
-              ),
-            ]),
-            const SizedBox(height: 20),
-
-            _buildJournalSection('Hier', [
-              _buildCallCard(
-                'Service Urgences',
-                'Appel entrant',
-                '22:45',
-                '3 min',
-                'Manqué',
-                Icons.call_missed,
-                Colors.red,
-              ),
-              _buildCallCard(
-                'Pharmacie Centrale',
-                'Appel sortant',
-                '14:30',
-                '5 min',
-                'Répondu',
-                Icons.call_made,
-                Colors.blue,
-              ),
-              _buildCallCard(
-                'Dr. François Mutombo',
-                'Appel entrant',
-                '11:00',
-                '12 min',
-                'Répondu',
-                Icons.call_received,
-                Colors.green,
-              ),
-            ]),
-            const SizedBox(height: 20),
-
-            _buildJournalSection('20 Jan 2026', [
-              _buildCallCard(
-                'Dr. Anne-Marie Lumbu',
-                'Appel entrant',
-                '16:00',
-                '20 min',
-                'Répondu',
-                Icons.call_received,
-                Colors.green,
-              ),
-              _buildCallCard(
-                'Inconnu',
-                'Appel entrant',
-                '11:20',
-                '-',
-                'Manqué',
-                Icons.call_missed,
-                Colors.red,
-              ),
-            ]),
-            const SizedBox(height: 20),
-
-            _buildJournalSection('19 Jan 2026', [
-              _buildCallCard(
-                'Laboratoire',
-                'Appel sortant',
-                '15:30',
-                '7 min',
-                'Répondu',
-                Icons.call_made,
-                Colors.blue,
-              ),
-              _buildCallCard(
-                'Dr. Pierre Mwamba',
-                'Appel entrant',
-                '09:45',
-                '10 min',
-                'Répondu',
-                Icons.call_received,
-                Colors.green,
-              ),
-            ]),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildJournalSection(String date, List<Widget> calls) {
+  Widget _buildJournalSection(String date, List<Map<String, dynamic>> calls) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,20 +344,28 @@ class _JournalState extends State<Journal> {
           ),
         ),
         const SizedBox(height: 12),
-        ...calls,
+        ...calls.map((call) => _buildCallCard(call)),
       ],
     );
   }
 
-  Widget _buildCallCard(
-    String contactName,
-    String callType,
-    String time,
-    String duration,
-    String status,
-    IconData callIcon,
-    Color statusColor,
-  ) {
+  Widget _buildCallCard(Map<String, dynamic> call) {
+    final contactName = CallsService.getContactName(
+      call,
+      _currentUserRole,
+      _currentUserId,
+    );
+    final callDirection = CallsService.getCallDirection(
+      call,
+      _currentUserRole,
+      _currentUserId,
+    );
+    final status = CallsService.formatCallStatus(call['status']);
+    final callIcon = _getCallIcon(call);
+    final statusColor = _getStatusColor(call['status']);
+    final time = _formatTime(call['createdAt']);
+    final duration = CallsService.formatDuration(call['duration']);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -226,10 +386,10 @@ class _JournalState extends State<Journal> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF95057B).withValues(alpha: 0.1),
+              color: const Color(0xFF8D3188).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(callIcon, color: const Color(0xFF95057B), size: 28),
+            child: Icon(callIcon, color: const Color(0xFF8D3188), size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -246,7 +406,7 @@ class _JournalState extends State<Journal> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  callType,
+                  '$callDirection • ${call['type'] == 'video' ? 'Vidéo' : 'Audio'}',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 4),

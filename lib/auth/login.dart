@@ -41,8 +41,6 @@ class _LoginState extends State<Login> {
 
         // Le login renvoie un challengeId pour la vérification 2FA
         if (response.containsKey('challengeId')) {
-          print('Challenge ID reçu: ${response['challengeId']}');
-
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -66,7 +64,6 @@ class _LoginState extends State<Login> {
           }
         }
       } catch (e) {
-        print(e);
         _showErrorSnackBar('Erreur de connexion: ${e.toString()}');
 
         if (mounted) {
@@ -106,7 +103,7 @@ class _LoginState extends State<Login> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(10),
                     child: Image.asset(
                       'assets/images/logo-congo-medika-1.webp',
                       width: 250,
@@ -154,7 +151,7 @@ class _LoginState extends State<Login> {
 
                   // Login Form
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -180,7 +177,7 @@ class _LoginState extends State<Login> {
                               hintText: 'Entrez votre email',
                               prefixIcon: const Icon(
                                 Icons.email_outlined,
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -194,7 +191,7 @@ class _LoginState extends State<Login> {
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   width: 2,
                                 ),
                               ),
@@ -224,14 +221,14 @@ class _LoginState extends State<Login> {
                               hintText: 'Entrez votre mot de passe',
                               prefixIcon: const Icon(
                                 Icons.lock_outlined,
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_outlined
                                       : Icons.visibility_off_outlined,
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -251,7 +248,7 @@ class _LoginState extends State<Login> {
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   width: 2,
                                 ),
                               ),
@@ -280,7 +277,8 @@ class _LoginState extends State<Login> {
                               child: Text(
                                 'Mot de passe oublié?',
                                 style: TextStyle(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -292,7 +290,7 @@ class _LoginState extends State<Login> {
                           ElevatedButton(
                             onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF95057B),
+                              backgroundColor: Color(0xFF8D3188),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -336,7 +334,8 @@ class _LoginState extends State<Login> {
                                   child: const Text(
                                     'Pas de compte ? Créer un compte',
                                     style: TextStyle(
-                                      color: Color(0xFF95057B),
+                                      color: Color(0xFF8D3188),
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),

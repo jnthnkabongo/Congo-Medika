@@ -60,15 +60,24 @@ class _RegisterState extends State<Register> {
           phone: _phoneController.text.trim(),
           role: _selectedRole,
           gender: _selectedGender,
-          address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-          dateOfBirth: _dateOfBirthController.text.trim().isEmpty ? null : _dateOfBirthController.text.trim(),
-          specialtyId: _selectedRole == 'doctor' && _specialtyIdController.text.trim().isNotEmpty
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          dateOfBirth: _dateOfBirthController.text.trim().isEmpty
+              ? null
+              : _dateOfBirthController.text.trim(),
+          specialtyId:
+              _selectedRole == 'doctor' &&
+                  _specialtyIdController.text.trim().isNotEmpty
               ? _specialtyIdController.text.trim()
               : null,
-          licenseNumber: _selectedRole == 'doctor' && _licenseNumberController.text.trim().isNotEmpty
+          licenseNumber:
+              _selectedRole == 'doctor' &&
+                  _licenseNumberController.text.trim().isNotEmpty
               ? _licenseNumberController.text.trim()
               : null,
-          bio: _selectedRole == 'doctor' && _bioController.text.trim().isNotEmpty
+          bio:
+              _selectedRole == 'doctor' && _bioController.text.trim().isNotEmpty
               ? _bioController.text.trim()
               : null,
         );
@@ -166,12 +175,12 @@ class _RegisterState extends State<Register> {
                       children: [
                         // Sélecteur de rôle
                         DropdownButtonFormField<String>(
-                          value: _selectedRole,
+                          initialValue: _selectedRole,
                           decoration: InputDecoration(
                             labelText: 'Rôle',
                             prefixIcon: const Icon(
                               Icons.person_outline,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -183,7 +192,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -191,8 +200,14 @@ class _RegisterState extends State<Register> {
                             fillColor: Colors.grey[50],
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'patient', child: Text('Patient')),
-                            DropdownMenuItem(value: 'doctor', child: Text('Médecin')),
+                            DropdownMenuItem(
+                              value: 'patient',
+                              child: Text('Patient'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'doctor',
+                              child: Text('Médecin'),
+                            ),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -211,7 +226,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre prénom',
                             prefixIcon: const Icon(
                               Icons.person_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -223,7 +238,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -248,7 +263,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre nom',
                             prefixIcon: const Icon(
                               Icons.person_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -260,7 +275,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -285,7 +300,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre email',
                             prefixIcon: const Icon(
                               Icons.email_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -297,7 +312,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -327,7 +342,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre numéro de téléphone',
                             prefixIcon: const Icon(
                               Icons.phone_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -339,7 +354,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -357,12 +372,12 @@ class _RegisterState extends State<Register> {
 
                         // Genre
                         DropdownButtonFormField<String>(
-                          value: _selectedGender,
+                          initialValue: _selectedGender,
                           decoration: InputDecoration(
                             labelText: 'Genre',
                             prefixIcon: const Icon(
                               Icons.wc_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -374,7 +389,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -382,9 +397,18 @@ class _RegisterState extends State<Register> {
                             fillColor: Colors.grey[50],
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'male', child: Text('Homme')),
-                            DropdownMenuItem(value: 'female', child: Text('Femme')),
-                            DropdownMenuItem(value: 'other', child: Text('Autre')),
+                            DropdownMenuItem(
+                              value: 'male',
+                              child: Text('Homme'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'female',
+                              child: Text('Femme'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'other',
+                              child: Text('Autre'),
+                            ),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -403,7 +427,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Sélectionnez votre date de naissance',
                             prefixIcon: const Icon(
                               Icons.calendar_today_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -415,7 +439,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -439,7 +463,7 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre adresse',
                             prefixIcon: const Icon(
                               Icons.location_on_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -451,7 +475,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -471,19 +495,21 @@ class _RegisterState extends State<Register> {
                               hintText: 'Entrez l\'ID de votre spécialité',
                               prefixIcon: const Icon(
                                 Icons.work_outline,
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   width: 2,
                                 ),
                               ),
@@ -491,7 +517,8 @@ class _RegisterState extends State<Register> {
                               fillColor: Colors.grey[50],
                             ),
                             validator: (value) {
-                              if (_selectedRole == 'doctor' && (value == null || value.isEmpty)) {
+                              if (_selectedRole == 'doctor' &&
+                                  (value == null || value.isEmpty)) {
                                 return 'L\'ID de spécialité est obligatoire pour les médecins';
                               }
                               return null;
@@ -506,19 +533,21 @@ class _RegisterState extends State<Register> {
                               hintText: 'Entrez votre numéro de licence',
                               prefixIcon: const Icon(
                                 Icons.badge_outlined,
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   width: 2,
                                 ),
                               ),
@@ -526,7 +555,8 @@ class _RegisterState extends State<Register> {
                               fillColor: Colors.grey[50],
                             ),
                             validator: (value) {
-                              if (_selectedRole == 'doctor' && (value == null || value.isEmpty)) {
+                              if (_selectedRole == 'doctor' &&
+                                  (value == null || value.isEmpty)) {
                                 return 'Le numéro de licence est obligatoire pour les médecins';
                               }
                               return null;
@@ -539,22 +569,25 @@ class _RegisterState extends State<Register> {
                             maxLines: 3,
                             decoration: InputDecoration(
                               labelText: 'Biographie (optionnel)',
-                              hintText: 'Décrivez votre expérience et vos qualifications',
+                              hintText:
+                                  'Décrivez votre expérience et vos qualifications',
                               prefixIcon: const Icon(
                                 Icons.description_outlined,
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   width: 2,
                                 ),
                               ),
@@ -574,14 +607,14 @@ class _RegisterState extends State<Register> {
                             hintText: 'Entrez votre mot de passe',
                             prefixIcon: const Icon(
                               Icons.lock_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
-                                color: const Color(0xFF95057B),
+                                color: const Color(0xFF8D3188),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -599,7 +632,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -627,14 +660,14 @@ class _RegisterState extends State<Register> {
                             hintText: 'Confirmez votre mot de passe',
                             prefixIcon: const Icon(
                               Icons.lock_outlined,
-                              color: Color(0xFF95057B),
+                              color: Color(0xFF8D3188),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureConfirmPassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
-                                color: const Color(0xFF95057B),
+                                color: const Color(0xFF8D3188),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -653,7 +686,7 @@ class _RegisterState extends State<Register> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
-                                color: Color(0xFF95057B),
+                                color: Color(0xFF8D3188),
                                 width: 2,
                               ),
                             ),
@@ -675,7 +708,7 @@ class _RegisterState extends State<Register> {
                         ElevatedButton(
                           onPressed: _isLoading ? null : _register,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF95057B),
+                            backgroundColor: const Color(0xFF8D3188),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -723,7 +756,7 @@ class _RegisterState extends State<Register> {
                               child: const Text(
                                 'Se connecter',
                                 style: TextStyle(
-                                  color: Color(0xFF95057B),
+                                  color: Color(0xFF8D3188),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

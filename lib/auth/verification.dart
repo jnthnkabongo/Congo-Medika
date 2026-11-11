@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../pages/main_menu.dart';
+import '../administrateurs/main_menu.dart';
 import '../services/auth_service.dart';
 
 class Verification extends StatefulWidget {
@@ -96,7 +97,8 @@ class _VerificationState extends State<Verification> {
         );
 
         // Sauvegarder le token Meet SaaS et organizationId si disponibles
-        if (response.containsKey('meetSaaSToken') && response['meetSaaSToken'] != null) {
+        if (response.containsKey('meetSaaSToken') &&
+            response['meetSaaSToken'] != null) {
           await AuthService.sauvegardeDonneesUser(
             'meetSaaSToken',
             response['meetSaaSToken']['token'],
@@ -116,10 +118,18 @@ class _VerificationState extends State<Verification> {
           ),
         );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainMenu()),
-        );
+        // Redirection selon le rôle
+        if (widget.role == 'doctor') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainMenuAdmin()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainMenu()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -161,7 +171,7 @@ class _VerificationState extends State<Verification> {
                 Text(
                   'Vérification de votre compte',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
@@ -170,13 +180,13 @@ class _VerificationState extends State<Verification> {
                 const SizedBox(height: 12),
                 Text(
                   'Entrez le code de vérification envoyé à votre adresse email',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
 
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(25),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -195,8 +205,8 @@ class _VerificationState extends State<Verification> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(6, (index) {
                           return SizedBox(
-                            width: 50,
-                            height: 60,
+                            width: 45,
+                            height: 50,
                             child: TextField(
                               controller: _codeControllers[index],
                               focusNode: _focusNodes[index],
@@ -204,7 +214,7 @@ class _VerificationState extends State<Verification> {
                               textAlign: TextAlign.center,
                               maxLength: 1,
                               style: const TextStyle(
-                                fontSize: 24,
+                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
                               decoration: InputDecoration(
@@ -221,7 +231,7 @@ class _VerificationState extends State<Verification> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: const BorderSide(
-                                    color: Color(0xFF95057B),
+                                    color: Color(0xFF8D3188),
                                     width: 2,
                                   ),
                                 ),
@@ -247,7 +257,7 @@ class _VerificationState extends State<Verification> {
                       ElevatedButton(
                         onPressed: _isLoading ? null : _verifyCode,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF95057B),
+                          backgroundColor: const Color(0xFF8D3188),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -277,13 +287,46 @@ class _VerificationState extends State<Verification> {
                       const SizedBox(height: 16),
 
                       TextButton(
-                        onPressed: () {
-                          print('Renvoyer le code');
+                        onPressed: () async {
+                          setState(() {
+                            _isLoading = true;
+                          });
+
+                          try {
+                            await AuthService.resendVerification(
+                              email: widget.email,
+                              role: widget.role,
+                            );
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Code renvoyé avec succès'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Erreur lors du renvoi: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         },
                         child: Text(
                           'Renvoyer le code',
                           style: TextStyle(
-                            color: const Color(0xFF95057B),
+                            color: const Color(0xFF8D3188),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
