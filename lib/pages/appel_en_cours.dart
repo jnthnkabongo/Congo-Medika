@@ -51,6 +51,9 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   bool _isRenegotiating = false;
   bool _callEstablished = false;
   bool _isVideoNegotiated = false;
+  // Vrai après un retour explicite en mode audio en cours d'appel :
+  // la m-line vidéo reste dans le SDP mais on force l'UI audio.
+  bool _audioOnlyMode = false;
 
   Timer? _callTimer;
   Timer? _renegotiationTimer;
@@ -74,7 +77,8 @@ class _AppelEnCoursState extends State<AppelEnCours> {
     _isCameraEnabled =
         localStream?.getVideoTracks().any((track) => track.enabled) ?? false;
     _isVideoCall =
-        widget.callType == 'video' || _remoteHasVideo || _isCameraEnabled;
+        !_audioOnlyMode &&
+        (widget.callType == 'video' || _remoteHasVideo || _isCameraEnabled);
   }
 
   @override
@@ -423,13 +427,26 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       _webrtcService.updateTargetUserId(callerId);
 
       var answerVideo = offerHasVideo;
-      if (isRenegotiation && offerHasVideo && !_webrtcService.hasLocalVideo) {
+      if (isRenegotiation) {
         try {
-          await _webrtcService.enableVideo();
+          if (offerHasVideo) {
+            // Passage en vidéo : créer la caméra si absente, sinon
+            // réactiver la piste existante (elle peut avoir été coupée).
+            if (!_webrtcService.hasLocalVideo) {
+              await _webrtcService.enableVideo();
+            } else {
+              await _webrtcService.setVideoEnabled(true);
+            }
+          } else if (_webrtcService.hasLocalVideo) {
+            // Retour en audio : arrêter la caméra locale.
+            await _webrtcService.disableVideo();
+          }
         } catch (e) {
-          debugPrint('[AppelEnCours] Impossible d\'activer la caméra: $e');
+          debugPrint('[AppelEnCours] Impossible de changer la vidéo: $e');
           answerVideo = false;
         }
+        _audioOnlyMode = !answerVideo;
+        _isVideoNegotiated = answerVideo;
       }
 
       debugPrint('[AppelEnCours] Création de la réponse...');
@@ -449,10 +466,13 @@ class _AppelEnCoursState extends State<AppelEnCours> {
 
       _callEstablished = true;
       _isVideoNegotiated = answerVideo;
-      _targetUserId = callerId;
+      if (isRenegotiation) {
+        _audioOnlyMode = !answerVideo;
+      }
       if (answerVideo) {
         _ensureSpeakerOn();
       }
+      _targetUserId = callerId;
       _refreshMediaState();
       if (mounted) setState(() {});
 
@@ -491,7 +511,14 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       if (answerHasVideo) {
         _isVideoNegotiated = true;
         _isVideoCall = true;
+        _audioOnlyMode = false;
         _ensureSpeakerOn();
+      } else if (isRenegotiation) {
+        // Réponse à une renégociation : si pas de vidéo, c'est un
+        // retour en mode audio -> couper l'UI vidéo et la caméra.
+        _isVideoNegotiated = false;
+        _audioOnlyMode = true;
+        await _webrtcService.disableVideo();
       }
       _refreshMediaState();
       _webrtcService.flushIceCandidateBuffer();
@@ -591,16 +618,39 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       return;
     }
 
-    final localStream = _webrtcService.localStream;
-    final hasLocalVideo = localStream?.getVideoTracks().isNotEmpty ?? false;
-    final videoEnabled =
-        localStream?.getVideoTracks().any((t) => t.enabled) ?? false;
+    final hasLocalVideo =
+        _webrtcService.localStream?.getVideoTracks().isNotEmpty ?? false;
 
-    // Caméra déjà négociée : simple activation/désactivation de la piste
+    // Vidéo négociée et active -> retour en mode audio : couper la
+    // caméra et renégocier en 'audio' pour que le distant coupe la
+    // sienne aussi et repasse en interface audio.
     if (hasLocalVideo && _isVideoNegotiated) {
-      await _webrtcService.setVideoEnabled(!videoEnabled);
-      _refreshMediaState();
-      if (mounted) setState(() {});
+      setState(() {
+        _isRenegotiating = true;
+      });
+      _startRenegotiationTimeout();
+      _showError('Retour en mode audio...');
+      try {
+        await _webrtcService.disableVideo();
+        final offer = await _webrtcService.createRenegotiationOffer();
+        _webSocketService.sendCallOffer(
+          targetUserId: _targetUserId!,
+          sdp: offer.sdp!,
+          type: offer.type!,
+          callType: 'audio',
+          isRenegotiation: true,
+        );
+        _isVideoNegotiated = false;
+        _audioOnlyMode = true;
+        _refreshMediaState();
+        if (mounted) setState(() {});
+      } catch (e) {
+        debugPrint('[AppelEnCours] ERREUR retour audio: $e');
+        _showError('Impossible de repasser en audio: $e');
+        _renegotiationTimer?.cancel();
+        _isRenegotiating = false;
+        if (mounted) setState(() {});
+      }
       return;
     }
 
@@ -939,10 +989,10 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                     Expanded(
                       child: _buildCallButton(
                         icon: _isCameraEnabled
-                            ? Icons.videocam
-                            : Icons.videocam_off,
-                        label: _isCameraEnabled ? 'Caméra ON' : 'Caméra OFF',
-                        color: _isCameraEnabled ? Colors.blue : Colors.grey,
+                            ? Icons.call_end
+                            : Icons.videocam,
+                        label: _isCameraEnabled ? 'Mode audio' : 'Caméra ON',
+                        color: _isCameraEnabled ? Colors.orange : Colors.blue,
                         onPressed: _toggleVideo,
                       ),
                     ),

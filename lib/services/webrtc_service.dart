@@ -255,6 +255,37 @@ class WebRTCService {
     _localStreamController.add(_localStream!);
   }
 
+  /// Arrête réellement la caméra : enabled=false ne fait que couper les
+  /// frames (la caméra reste ouverte, voyant allumé). Ici on stoppe les
+  /// pistes et on les retire du stream local pour pouvoir les recréer
+  /// proprement si l'utilisateur repasse en vidéo.
+  Future<void> disableVideo() async {
+    final local = _localStream;
+    if (local == null) return;
+    // Copier la liste : getVideoTracks() retourne la liste interne
+    // vivante, la modifier pendant l'itération lève
+    // ConcurrentModificationError.
+    for (final track in List<MediaStreamTrack>.of(local.getVideoTracks())) {
+      try {
+        await track.stop();
+      } catch (e) {
+        debugPrint('[WebRTC] Erreur stop piste vidéo: $e');
+      }
+      try {
+        // removeFromNative: false — stop() a déjà libéré la piste côté
+        // natif, l'appel removeTrack natif échouerait sinon.
+        await local.removeTrack(track, removeFromNative: false);
+      } catch (e) {
+        debugPrint('[WebRTC] Erreur removeTrack vidéo: $e');
+      }
+    }
+    try {
+      await _videoStream?.dispose();
+    } catch (_) {}
+    _videoStream = null;
+    _localStreamController.add(local);
+  }
+
   Future<RTCSessionDescription> createRenegotiationOffer() async {
     if (_peerConnection == null) {
       throw StateError('PeerConnection non initialisée');
