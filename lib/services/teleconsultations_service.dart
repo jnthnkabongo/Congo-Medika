@@ -6,13 +6,13 @@ import 'package:frontend/services/http_interceptor.dart';
 class TeleconsultationsService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.103.126:3001/api/teleconsultations';
+      return 'http://192.168.1.11:3001/api/teleconsultations';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.103.126:3001/api/teleconsultations';
+      return 'http://192.168.1.11:3001/api/teleconsultations';
     } else if (Platform.isIOS) {
-      return 'http://192.168.103.126:3001/api/teleconsultations';
+      return 'http://192.168.1.11:3001/api/teleconsultations';
     }
-    return 'http://192.168.103.126:3001/api/teleconsultations';
+    return 'http://192.168.1.11:3001/api/teleconsultations';
   }
 
   // Créer une téléconsultation

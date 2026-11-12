@@ -4,7 +4,7 @@ import 'package:frontend/services/auth_service.dart';
 
 class PatientsService {
   static String get baseUrl {
-    return 'http://192.168.103.126:3001/api/auth';
+    return 'http://192.168.1.11:3001/api/auth';
   }
 
   static Future<List<Map<String, dynamic>>> getPatients() async {

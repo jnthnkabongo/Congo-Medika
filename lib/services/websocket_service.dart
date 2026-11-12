@@ -14,13 +14,13 @@ class WebSocketService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.103.126:3001';
+      return 'http://192.168.1.11:3001';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.103.126:3001';
+      return 'http://192.168.1.11:3001';
     } else if (Platform.isIOS) {
-      return 'http://192.168.103.126:3001';
+      return 'http://192.168.1.11:3001';
     }
-    return 'http://192.168.103.126:3001';
+    return 'http://192.168.1.11:3001';
   }
 
   // Streams pour les événements

@@ -9,13 +9,13 @@ class AuthService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.103.126:3001/api/auth';
+      return 'http://192.168.1.11:3001/api/auth';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.103.126:3001/api/auth';
+      return 'http://192.168.1.11:3001/api/auth';
     } else if (Platform.isIOS) {
-      return 'http://192.168.103.126:3001/api/auth';
+      return 'http://192.168.1.11:3001/api/auth';
     }
-    return 'http://192.168.103.126:3001/api/auth';
+    return 'http://192.168.1.11:3001/api/auth';
   }
 
   static const String _tokenKey = 'auth_token';

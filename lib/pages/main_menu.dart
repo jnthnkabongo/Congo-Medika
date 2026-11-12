@@ -76,7 +76,7 @@ class _MainMenuState extends State<MainMenu> {
                   _buildNavItem(
                     icon: Icons.calendar_today_outlined,
                     selectedIcon: Icons.calendar_today_rounded,
-                    label: 'Calendrier',
+                    label: 'Rendez-vous',
                     index: 3,
                   ),
                   _buildNavItem(

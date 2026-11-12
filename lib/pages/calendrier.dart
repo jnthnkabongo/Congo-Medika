@@ -77,9 +77,9 @@ class _CalendrierState extends State<Calendriers> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
+        initialChildSize: 0.65,
         minChildSize: 0.5,
-        maxChildSize: 0.95,
+        maxChildSize: 0.65,
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
@@ -107,9 +107,9 @@ class _CalendrierState extends State<Calendriers> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
+        initialChildSize: 0.65,
         minChildSize: 0.5,
-        maxChildSize: 0.95,
+        maxChildSize: 0.65,
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
@@ -177,9 +177,9 @@ class _CalendrierState extends State<Calendriers> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
+        initialChildSize: 0.5,
         minChildSize: 0.4,
-        maxChildSize: 0.9,
+        maxChildSize: 0.5,
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
@@ -355,7 +355,7 @@ class _CalendrierState extends State<Calendriers> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Calendrier',
+              'Rendez-vous',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,

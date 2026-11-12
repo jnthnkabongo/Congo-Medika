@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/appointments_service.dart';
+import '../services/doctors_service.dart';
 
 class AppointmentForm extends StatefulWidget {
   final Map<String, dynamic>? appointment;
@@ -13,7 +14,6 @@ class AppointmentForm extends StatefulWidget {
 
 class _AppointmentFormState extends State<AppointmentForm> {
   final _formKey = GlobalKey<FormState>();
-  final _doctorIdController = TextEditingController();
   final _appointmentDateController = TextEditingController();
   final _startTimeController = TextEditingController();
   final _endTimeController = TextEditingController();
@@ -21,7 +21,11 @@ class _AppointmentFormState extends State<AppointmentForm> {
   final _statusController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isLoadingDoctors = false;
   String? _error;
+  String? _doctorsError;
+  String? _selectedDoctorId;
+  List<Map<String, dynamic>> _doctors = [];
   bool _isEditing = false;
 
   @override
@@ -31,6 +35,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
     if (_isEditing) {
       _populateForm();
     } else {
+      _loadDoctors();
       // Date par défaut : aujourd'hui
       final now = DateTime.now();
       _appointmentDateController.text =
@@ -42,7 +47,6 @@ class _AppointmentFormState extends State<AppointmentForm> {
 
   void _populateForm() {
     final appointment = widget.appointment!;
-    _doctorIdController.text = appointment['doctorId']?.toString() ?? '';
 
     // Formater la date
     final appointmentDate = appointment['appointmentDate'];
@@ -80,6 +84,28 @@ class _AppointmentFormState extends State<AppointmentForm> {
 
     _reasonController.text = appointment['reason'] ?? '';
     _statusController.text = appointment['status'] ?? 'pending';
+  }
+
+  Future<void> _loadDoctors() async {
+    setState(() {
+      _isLoadingDoctors = true;
+      _doctorsError = null;
+    });
+
+    try {
+      final doctors = await DoctorsService.getDoctors();
+      if (!mounted) return;
+      setState(() {
+        _doctors = doctors;
+        _isLoadingDoctors = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _doctorsError = e.toString();
+        _isLoadingDoctors = false;
+      });
+    }
   }
 
   Future<void> _selectDate() async {
@@ -145,7 +171,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
       } else {
         // Création
         await AppointmentsService.createAppointment(
-          doctorId: int.parse(_doctorIdController.text),
+          doctorId: int.parse(_selectedDoctorId!),
           appointmentDate: _appointmentDateController.text,
           startTime: _startTimeController.text,
           endTime: _endTimeController.text,
@@ -245,25 +271,8 @@ class _AppointmentFormState extends State<AppointmentForm> {
               child: Text(_error!, style: const TextStyle(color: Colors.red)),
             ),
 
-          // ID du médecin (seulement pour la création)
-          if (!_isEditing) ...[
-            TextFormField(
-              controller: _doctorIdController,
-              decoration: const InputDecoration(
-                labelText: 'ID du médecin',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer l\'ID du médecin';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+          // Médecin (seulement pour la création)
+          if (!_isEditing) ...[_buildDoctorField(), const SizedBox(height: 16)],
 
           // Date du rendez-vous
           TextFormField(
@@ -409,9 +418,69 @@ class _AppointmentFormState extends State<AppointmentForm> {
     );
   }
 
+  Widget _buildDoctorField() {
+    if (_isLoadingDoctors) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_doctorsError != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Erreur lors du chargement des médecins: $_doctorsError',
+            style: const TextStyle(color: Colors.red),
+          ),
+          TextButton(onPressed: _loadDoctors, child: const Text('Réessayer')),
+        ],
+      );
+    }
+
+    final doctorsWithIds = _doctors
+        .where((doctor) => doctor['id'] != null)
+        .toList();
+    if (doctorsWithIds.isEmpty) {
+      return const Text(
+        'Aucun médecin disponible',
+        style: TextStyle(color: Colors.red),
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedDoctorId,
+      decoration: const InputDecoration(
+        labelText: 'Médecin',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.person),
+      ),
+      hint: const Text('Sélectionner un médecin'),
+      items: doctorsWithIds.map((doctor) {
+        final firstName = doctor['firstName']?.toString() ?? '';
+        final lastName = doctor['lastName']?.toString() ?? '';
+        return DropdownMenuItem<String>(
+          value: doctor['id'].toString(),
+          child: Text('Dr. $firstName $lastName'.trim()),
+        );
+      }).toList(),
+      onChanged: (doctorId) {
+        setState(() {
+          _selectedDoctorId = doctorId;
+        });
+      },
+      validator: (doctorId) {
+        if (doctorId == null || doctorId.isEmpty) {
+          return 'Veuillez sélectionner un médecin';
+        }
+        if (int.tryParse(doctorId) == null) {
+          return 'Identifiant du médecin invalide';
+        }
+        return null;
+      },
+    );
+  }
+
   @override
   void dispose() {
-    _doctorIdController.dispose();
     _appointmentDateController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
