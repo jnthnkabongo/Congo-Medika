@@ -3,6 +3,7 @@ import 'package:frontend/services/websocket_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/messages_service.dart';
 import 'appel_en_cours.dart';
+import '../theme/app_theme.dart';
 
 class Chats extends StatefulWidget {
   final String roomId;
@@ -233,6 +234,7 @@ class _ChatsState extends State<Chats> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         leading: IconButton(
@@ -253,35 +255,41 @@ class _ChatsState extends State<Chats> {
               child: const Icon(Icons.person, color: Color(0xFF8D3188)),
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.doctorName,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.doctorName,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _isConnected ? Colors.green : Colors.red,
-                        shape: BoxShape.circle,
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _isConnected ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _isConnected ? 'En ligne' : 'Hors ligne',
-                      style: TextStyle(color: Colors.white70, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _isConnected ? 'En ligne' : 'Hors ligne',
+                          style: TextStyle(color: Colors.white70, fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

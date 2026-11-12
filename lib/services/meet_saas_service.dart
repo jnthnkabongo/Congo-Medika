@@ -7,13 +7,13 @@ import 'package:frontend/services/auth_service.dart';
 class MeetSaaSService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.1.11:3001/api/meet-saas';
+      return 'http://10.235.140.126:3001/api/meet-saas';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.1.11:3001/api/meet-saas';
+      return 'http://10.235.140.126:3001/api/meet-saas';
     } else if (Platform.isIOS) {
-      return 'http://192.168.1.11:3001/api/meet-saas';
+      return 'http://10.235.140.126:3001/api/meet-saas';
     }
-    return 'http://192.168.1.11:3001/api/meet-saas';
+    return 'http://10.235.140.126:3001/api/meet-saas';
   }
 
   static Future<Map<String, dynamic>> createMeetingForTeleconsultation(
@@ -33,7 +33,9 @@ class MeetSaaSService {
         return data;
       } else {
         final errorData = jsonDecode(response.body);
-        throw Exception(errorData['message'] ?? 'Erreur lors de la création de la réunion');
+        throw Exception(
+          errorData['message'] ?? 'Erreur lors de la création de la réunion',
+        );
       }
     } catch (e) {
       throw Exception('Erreur de connexion: $e');

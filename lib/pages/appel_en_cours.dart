@@ -41,7 +41,6 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   int _callDuration = 0;
   String? _targetUserId;
   RTCSessionDescription? _localDescription;
-  MediaStream? _localStream;
   MediaStream? _remoteStream;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
@@ -54,18 +53,26 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   bool _isVideoNegotiated = false;
 
   Timer? _callTimer;
+  Timer? _renegotiationTimer;
 
   bool _hasActiveVideo(MediaStream? stream) {
     return stream?.getVideoTracks().any((track) => track.enabled) ?? false;
   }
 
+  /// Le type d'appel est déterminé par le champ `callType` de la
+  /// signalisation ('audio'/'video'), toujours envoyé par nos clients.
+  /// On ne déduit PAS la vidéo du SDP : une offre audio contient quand
+  /// même une section `m=video` (non rejetée côté offreur), ce qui
+  /// activait la caméra à tort.
+
   bool get _hasLocalVideoTrack =>
-      _localStream?.getVideoTracks().isNotEmpty ?? false;
+      _webrtcService.localStream?.getVideoTracks().isNotEmpty ?? false;
 
   void _refreshMediaState() {
+    final localStream = _webrtcService.localStream;
     _remoteHasVideo = _hasActiveVideo(_remoteStream);
     _isCameraEnabled =
-        _localStream?.getVideoTracks().any((track) => track.enabled) ?? false;
+        localStream?.getVideoTracks().any((track) => track.enabled) ?? false;
     _isVideoCall =
         widget.callType == 'video' || _remoteHasVideo || _isCameraEnabled;
   }
@@ -85,9 +92,10 @@ class _AppelEnCoursState extends State<AppelEnCours> {
         '[AppelEnCours] teleconsultationId: ${widget.teleconsultationId}',
       );
 
-      // Forcer le haut-parleur pour Android
+      // Forcer le haut-parleur pour Android et synchroniser l'état UI
       try {
         await _webrtcService.setSpeakerphoneOn(true);
+        _isSpeakerOn = true;
         debugPrint('[AppelEnCours] Haut-parleur activé');
       } catch (e) {
         debugPrint('[AppelEnCours] Erreur activation haut-parleur: $e');
@@ -145,7 +153,6 @@ class _AppelEnCoursState extends State<AppelEnCours> {
 
       // Écouter le flux local (micro et caméra)
       _webrtcService.onLocalStream.listen((stream) {
-        _localStream = stream;
         _localRenderer.srcObject = stream;
         _refreshMediaState();
         if (mounted) setState(() {});
@@ -406,9 +413,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
         return;
       }
 
-      final sdpText = data['sdp'] as String? ?? '';
-      final offerHasVideo =
-          data['callType'] == 'video' || sdpText.contains('m=video');
+      final offerHasVideo = data['callType'] == 'video';
       final isRenegotiation =
           data['isRenegotiation'] == true || _callEstablished;
 
@@ -445,6 +450,9 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       _callEstablished = true;
       _isVideoNegotiated = answerVideo;
       _targetUserId = callerId;
+      if (answerVideo) {
+        _ensureSpeakerOn();
+      }
       _refreshMediaState();
       if (mounted) setState(() {});
 
@@ -475,15 +483,15 @@ class _AppelEnCoursState extends State<AppelEnCours> {
           data['isRenegotiation'] == true || _isRenegotiating;
       if (isRenegotiation) {
         _isRenegotiating = false;
+        _renegotiationTimer?.cancel();
       }
 
       _callEstablished = true;
-      final answerHasVideo =
-          data['callType'] == 'video' ||
-          (data['sdp'] as String? ?? '').contains('m=video');
+      final answerHasVideo = data['callType'] == 'video';
       if (answerHasVideo) {
         _isVideoNegotiated = true;
         _isVideoCall = true;
+        _ensureSpeakerOn();
       }
       _refreshMediaState();
       _webrtcService.flushIceCandidateBuffer();
@@ -513,50 +521,114 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   }
 
   void _toggleMute() async {
-    await _webrtcService.muteAudio(!_isMuted);
-    setState(() {
-      _isMuted = !_isMuted;
-    });
+    final newMuted = !_isMuted;
+    try {
+      await _webrtcService.muteAudio(newMuted);
+    } catch (e) {
+      debugPrint('[AppelEnCours] ERREUR mute: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _isMuted = newMuted;
+      });
+    }
   }
 
   void _toggleSpeaker() async {
-    await _webrtcService.setSpeakerphoneOn(!_isSpeakerOn);
-    setState(() {
-      _isSpeakerOn = !_isSpeakerOn;
+    final newSpeakerOn = !_isSpeakerOn;
+    try {
+      await _webrtcService.setSpeakerphoneOn(newSpeakerOn);
+    } catch (e) {
+      debugPrint('[AppelEnCours] ERREUR haut-parleur: $e');
+      _showError('Impossible de changer le mode audio');
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _isSpeakerOn = newSpeakerOn;
+      });
+    }
+  }
+
+  /// En appel vidéo, le son doit sortir par le haut-parleur (comme sur
+  /// WhatsApp/Meet) : l'oreillette serait inutilisable caméra en main.
+  /// Réappliqué à chaque bascule audio -> vidéo car certaines plateformes
+  /// reroutent l'audio vers l'oreillette lors de la renégociation.
+  Future<void> _ensureSpeakerOn() async {
+    try {
+      await _webrtcService.setSpeakerphoneOn(true);
+      if (mounted && !_isSpeakerOn) {
+        setState(() {
+          _isSpeakerOn = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('[AppelEnCours] Erreur activation haut-parleur: $e');
+    }
+  }
+
+  void _startRenegotiationTimeout() {
+    _renegotiationTimer?.cancel();
+    _renegotiationTimer = Timer(const Duration(seconds: 15), () {
+      if (_isRenegotiating && mounted) {
+        debugPrint('[AppelEnCours] Renégociation expirée, reset');
+        setState(() {
+          _isRenegotiating = false;
+        });
+      }
     });
   }
 
   Future<void> _toggleVideo() async {
-    if (_targetUserId == null || _isRenegotiating) return;
-
-    if (!_webrtcService.hasLocalVideo || !_isVideoNegotiated) {
-      setState(() {
-        _isRenegotiating = true;
-      });
-      try {
-        await _webrtcService.enableVideo();
-        final offer = await _webrtcService.createRenegotiationOffer();
-        _webSocketService.sendCallOffer(
-          targetUserId: _targetUserId!,
-          sdp: offer.sdp!,
-          type: offer.type!,
-          callType: 'video',
-          isRenegotiation: true,
-        );
-        _refreshMediaState();
-        if (mounted) setState(() {});
-      } catch (e) {
-        debugPrint('[AppelEnCours] ERREUR activation vidéo: $e');
-        _showError('Impossible d\'activer la caméra: $e');
-        _isRenegotiating = false;
-        if (mounted) setState(() {});
-      }
+    if (_isRenegotiating) {
+      _showError('Activation de la vidéo en cours, patientez...');
       return;
     }
 
-    await _webrtcService.setVideoEnabled(!_isCameraEnabled);
-    _refreshMediaState();
-    if (mounted) setState(() {});
+    _targetUserId ??= widget.targetUserId;
+    if (_targetUserId == null) {
+      _showError('Impossible de changer le mode vidéo');
+      return;
+    }
+
+    final localStream = _webrtcService.localStream;
+    final hasLocalVideo = localStream?.getVideoTracks().isNotEmpty ?? false;
+    final videoEnabled =
+        localStream?.getVideoTracks().any((t) => t.enabled) ?? false;
+
+    // Caméra déjà négociée : simple activation/désactivation de la piste
+    if (hasLocalVideo && _isVideoNegotiated) {
+      await _webrtcService.setVideoEnabled(!videoEnabled);
+      _refreshMediaState();
+      if (mounted) setState(() {});
+      return;
+    }
+
+    // Passage audio -> vidéo : activer la caméra et renégocier
+    setState(() {
+      _isRenegotiating = true;
+    });
+    _startRenegotiationTimeout();
+    _showError('Activation de la vidéo...');
+    try {
+      await _webrtcService.enableVideo();
+      final offer = await _webrtcService.createRenegotiationOffer();
+      _webSocketService.sendCallOffer(
+        targetUserId: _targetUserId!,
+        sdp: offer.sdp!,
+        type: offer.type!,
+        callType: 'video',
+        isRenegotiation: true,
+      );
+      _refreshMediaState();
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('[AppelEnCours] ERREUR activation vidéo: $e');
+      _showError('Impossible d\'activer la caméra: $e');
+      _renegotiationTimer?.cancel();
+      _isRenegotiating = false;
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _switchCamera() async {
@@ -568,6 +640,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
     if (_isEndingCall) return;
     _isEndingCall = true;
     _callTimer?.cancel();
+    _renegotiationTimer?.cancel();
 
     // Essayer d'envoyer le signal de fin d'appel seulement si connecté
     if (_targetUserId != null && _webSocketService.isWebRTCConnected) {
@@ -601,6 +674,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   @override
   void dispose() {
     _callTimer?.cancel();
+    _renegotiationTimer?.cancel();
     _webrtcService.dispose();
     _localRenderer.dispose();
     _remoteRenderer.dispose();
@@ -676,31 +750,40 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                     ),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildCallButton(
-                        icon: _isMuted ? Icons.mic_off : Icons.mic,
-                        label: _isMuted ? 'Désactivé' : 'Micro',
-                        color: _isMuted ? Colors.red : Colors.blue,
-                        onPressed: _toggleMute,
+                      Expanded(
+                        child: _buildCallButton(
+                          icon: _isMuted ? Icons.mic_off : Icons.mic,
+                          label: _isMuted ? 'Désactivé' : 'Micro',
+                          color: _isMuted ? Colors.red : Colors.blue,
+                          onPressed: _toggleMute,
+                        ),
                       ),
-                      _buildCallButton(
-                        icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_off,
-                        label: _isSpeakerOn ? 'Haut-parleur' : 'Silencieux',
-                        color: _isSpeakerOn ? Colors.blue : Colors.grey,
-                        onPressed: _toggleSpeaker,
+                      Expanded(
+                        child: _buildCallButton(
+                          icon: _isSpeakerOn
+                              ? Icons.volume_up
+                              : Icons.volume_off,
+                          label: _isSpeakerOn ? 'Haut-parleur' : 'Silencieux',
+                          color: _isSpeakerOn ? Colors.blue : Colors.grey,
+                          onPressed: _toggleSpeaker,
+                        ),
                       ),
-                      _buildCallButton(
-                        icon: Icons.videocam,
-                        label: 'Vidéo',
-                        color: Colors.blue,
-                        onPressed: _toggleVideo,
+                      Expanded(
+                        child: _buildCallButton(
+                          icon: Icons.videocam,
+                          label: 'Vidéo',
+                          color: Colors.blue,
+                          onPressed: _toggleVideo,
+                        ),
                       ),
-                      _buildCallButton(
-                        icon: Icons.call_end,
-                        label: 'Raccrocher',
-                        color: Colors.red,
-                        onPressed: _endCall,
+                      Expanded(
+                        child: _buildCallButton(
+                          icon: Icons.call_end,
+                          label: 'Raccrocher',
+                          color: Colors.red,
+                          onPressed: _endCall,
+                        ),
                       ),
                     ],
                   ),
@@ -844,33 +927,40 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                 ),
                 const SizedBox(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildCallButton(
-                      icon: _isMuted ? Icons.mic_off : Icons.mic,
-                      label: _isMuted ? 'Désactivé' : 'Micro',
-                      color: _isMuted ? Colors.red : Colors.blue,
-                      onPressed: _toggleMute,
+                    Expanded(
+                      child: _buildCallButton(
+                        icon: _isMuted ? Icons.mic_off : Icons.mic,
+                        label: _isMuted ? 'Désactivé' : 'Micro',
+                        color: _isMuted ? Colors.red : Colors.blue,
+                        onPressed: _toggleMute,
+                      ),
                     ),
-                    _buildCallButton(
-                      icon: _isCameraEnabled
-                          ? Icons.videocam
-                          : Icons.videocam_off,
-                      label: _isCameraEnabled ? 'Caméra ON' : 'Caméra OFF',
-                      color: _isCameraEnabled ? Colors.blue : Colors.grey,
-                      onPressed: _toggleVideo,
+                    Expanded(
+                      child: _buildCallButton(
+                        icon: _isCameraEnabled
+                            ? Icons.videocam
+                            : Icons.videocam_off,
+                        label: _isCameraEnabled ? 'Caméra ON' : 'Caméra OFF',
+                        color: _isCameraEnabled ? Colors.blue : Colors.grey,
+                        onPressed: _toggleVideo,
+                      ),
                     ),
-                    _buildCallButton(
-                      icon: Icons.flip_camera_ios,
-                      label: 'Retourner',
-                      color: Colors.blue,
-                      onPressed: _switchCamera,
+                    Expanded(
+                      child: _buildCallButton(
+                        icon: Icons.flip_camera_ios,
+                        label: 'Retourner',
+                        color: Colors.blue,
+                        onPressed: _switchCamera,
+                      ),
                     ),
-                    _buildCallButton(
-                      icon: Icons.call_end,
-                      label: 'Raccrocher',
-                      color: Colors.red,
-                      onPressed: _endCall,
+                    Expanded(
+                      child: _buildCallButton(
+                        icon: Icons.call_end,
+                        label: 'Raccrocher',
+                        color: Colors.red,
+                        onPressed: _endCall,
+                      ),
                     ),
                   ],
                 ),
@@ -950,7 +1040,15 @@ class _AppelEnCoursState extends State<AppelEnCours> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        // FittedBox : le libellé rétrécit si nécessaire pour rester visible
+        // lorsque la police système est fortement agrandie.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ),
       ],
     );
   }

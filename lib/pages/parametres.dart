@@ -5,6 +5,7 @@ import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/pages/edit_profile_bottom_sheet.dart';
 import 'package:frontend/auth/login.dart';
 import 'dart:convert';
+import '../theme/app_theme.dart';
 
 class Parametres extends StatefulWidget {
   const Parametres({super.key});
@@ -89,17 +90,20 @@ class _ParametresState extends State<Parametres> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Paramètres',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Paramètres',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 

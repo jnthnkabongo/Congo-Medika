@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/calls_service.dart';
 import '../services/auth_service.dart';
 import 'dart:convert';
+import '../theme/app_theme.dart';
 
 class Journal extends StatefulWidget {
   const Journal({super.key});
@@ -189,17 +190,20 @@ class _JournalState extends State<Journal> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Journal d\'appels',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Journal d\'appels',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             GestureDetector(
@@ -412,9 +416,12 @@ class _JournalState extends State<Journal> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text(
-                      time,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    Flexible(
+                      child: Text(
+                        time,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     if (duration != '-')

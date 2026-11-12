@@ -5,6 +5,7 @@ import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/doctors_service.dart';
 import 'package:frontend/services/appointments_service.dart';
 import 'dart:convert';
+import '../theme/app_theme.dart';
 
 class Consultations extends StatefulWidget {
   const Consultations({super.key});
@@ -201,12 +202,14 @@ class _ConsultationsState extends State<Consultations> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Prendre rendez-vous',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                        const Expanded(
+                          child: Text(
+                            'Prendre rendez-vous',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                         IconButton(
@@ -564,17 +567,20 @@ class _ConsultationsState extends State<Consultations> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Nos médecins',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Nos médecins',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(width: 16),

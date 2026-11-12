@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/appointments_service.dart';
 import 'package:frontend/pages/appointment_form.dart';
+import '../theme/app_theme.dart';
 
 class CalendriersAdmin extends StatefulWidget {
   const CalendriersAdmin({super.key});
@@ -263,6 +264,7 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
@@ -311,12 +313,14 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Rendez-vous (${_filteredAppointments.length})',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+                Expanded(
+                  child: Text(
+                    'Rendez-vous (${_filteredAppointments.length})',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
                   ),
                 ),
                 IconButton(
@@ -448,9 +452,12 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
                   children: [
                     Icon(Icons.access_time, size: 10, color: Colors.grey[500]),
                     const SizedBox(width: 4),
-                    Text(
-                      '$date • $startTime - $endTime',
-                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                    Flexible(
+                      child: Text(
+                        '$date • $startTime - $endTime',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

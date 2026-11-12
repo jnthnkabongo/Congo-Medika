@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/appointments_service.dart';
 import '../services/doctors_service.dart';
+import '../theme/app_theme.dart';
 
 class AppointmentForm extends StatefulWidget {
   final Map<String, dynamic>? appointment;
@@ -232,6 +233,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Text(

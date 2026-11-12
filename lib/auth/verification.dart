@@ -29,6 +29,13 @@ class _VerificationState extends State<Verification> {
   );
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
   bool _isLoading = false;
+  late String _challengeId;
+
+  @override
+  void initState() {
+    super.initState();
+    _challengeId = widget.challengeId;
+  }
 
   @override
   void dispose() {
@@ -70,13 +77,13 @@ class _VerificationState extends State<Verification> {
       if (widget.isLogin) {
         // Vérification du code de connexion (2FA)
         response = await AuthService.verifyLoginCode(
-          challengeId: widget.challengeId,
+          challengeId: _challengeId,
           code: code,
         );
       } else {
         // Vérification de l'email
         response = await AuthService.verifyEmail(
-          challengeId: widget.challengeId,
+          challengeId: _challengeId,
           code: code,
         );
       }
@@ -118,8 +125,11 @@ class _VerificationState extends State<Verification> {
           ),
         );
 
-        // Redirection selon le rôle
-        if (widget.role == 'doctor') {
+        // Redirection selon le rôle renvoyé par le backend
+        // (détecté automatiquement via l'email), avec repli sur le rôle connu.
+        final userRole =
+            (response['user'] as Map<String, dynamic>?)?['role'] ?? widget.role;
+        if (userRole == 'doctor') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const MainMenuAdmin()),
@@ -144,6 +154,54 @@ class _VerificationState extends State<Verification> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _resendCode() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = widget.isLogin
+          ? await AuthService.resendLoginCode(
+              email: widget.email,
+              role: widget.role,
+            )
+          : await AuthService.resendVerification(
+              email: widget.email,
+              role: widget.role,
+            );
+
+      // Le backend invalide l'ancien code et en crée un nouveau :
+      // il faut utiliser le nouveau challengeId pour la vérification.
+      if (response['challengeId'] != null) {
+        _challengeId = response['challengeId'];
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Code renvoyé avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du renvoi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -204,50 +262,57 @@ class _VerificationState extends State<Verification> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(6, (index) {
-                          return SizedBox(
-                            width: 45,
-                            height: 50,
-                            child: TextField(
-                              controller: _codeControllers[index],
-                              focusNode: _focusNodes[index],
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              maxLength: 1,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: index == 0 ? 0 : 4,
+                                right: index == 5 ? 0 : 4,
                               ),
-                              decoration: InputDecoration(
-                                counterText: '',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey[300]!,
+                              child: SizedBox(
+                                height: 50,
+                                child: TextField(
+                                  controller: _codeControllers[index],
+                                  focusNode: _focusNodes[index],
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  maxLength: 1,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFF8D3188),
-                                    width: 2,
+                                  decoration: InputDecoration(
+                                    counterText: '',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey[300]!,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF8D3188),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.grey[50],
                                   ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: (value) =>
+                                      _onCodeChanged(value, index),
+                                  onSubmitted: (value) {
+                                    if (index == 5) {
+                                      _verifyCode();
+                                    }
+                                  },
                                 ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
                               ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              onChanged: (value) =>
-                                  _onCodeChanged(value, index),
-                              onSubmitted: (value) {
-                                if (index == 5) {
-                                  _verifyCode();
-                                }
-                              },
                             ),
                           );
                         }),
@@ -287,42 +352,7 @@ class _VerificationState extends State<Verification> {
                       const SizedBox(height: 16),
 
                       TextButton(
-                        onPressed: () async {
-                          setState(() {
-                            _isLoading = true;
-                          });
-
-                          try {
-                            await AuthService.resendVerification(
-                              email: widget.email,
-                              role: widget.role,
-                            );
-
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Code renvoyé avec succès'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Erreur lors du renvoi: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } finally {
-                            if (mounted) {
-                              setState(() {
-                                _isLoading = false;
-                              });
-                            }
-                          }
-                        },
+                        onPressed: _isLoading ? null : _resendCode,
                         child: Text(
                           'Renvoyer le code',
                           style: TextStyle(

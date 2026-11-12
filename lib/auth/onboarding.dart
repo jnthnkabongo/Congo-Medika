@@ -77,7 +77,6 @@ class _OnboardingState extends State<Onboarding> {
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
                     child: ElevatedButton(
                       onPressed: () async {
                         if (_currentPage == _items.length - 1) {
@@ -103,6 +102,7 @@ class _OnboardingState extends State<Onboarding> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF8D3188),
                         foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(56),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -175,7 +175,7 @@ class OnboardingItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(40.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

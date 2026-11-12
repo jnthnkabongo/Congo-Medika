@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/services/teleconsultations_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/pages/chats.dart';
+import '../theme/app_theme.dart';
 
 class ConsultationsAdmin extends StatefulWidget {
   const ConsultationsAdmin({super.key});
@@ -137,6 +138,7 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
@@ -306,20 +308,48 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDate(appointment['appointmentDate']),
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Colors.grey[500],
+                    ),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 160),
+                      child: Text(
+                        _formatDate(appointment['appointmentDate']),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Icon(Icons.medical_services, size: 12, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  appointment['reason'] ?? 'Non renseigné',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.medical_services,
+                      size: 12,
+                      color: Colors.grey[500],
+                    ),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: Text(
+                        appointment['reason'] ?? 'Non renseigné',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

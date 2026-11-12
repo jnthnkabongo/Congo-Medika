@@ -9,13 +9,13 @@ class AuthService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.1.11:3001/api/auth';
+      return 'http://10.235.140.126:3001/api/auth';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.1.11:3001/api/auth';
+      return 'http://10.235.140.126:3001/api/auth';
     } else if (Platform.isIOS) {
-      return 'http://192.168.1.11:3001/api/auth';
+      return 'http://10.235.140.126:3001/api/auth';
     }
-    return 'http://192.168.1.11:3001/api/auth';
+    return 'http://10.235.140.126:3001/api/auth';
   }
 
   static const String _tokenKey = 'auth_token';
@@ -101,7 +101,7 @@ class AuthService {
   // Renvoyer le code de vérification
   static Future<Map<String, dynamic>> resendVerification({
     required String email,
-    required String role,
+    String? role,
   }) async {
     try {
       final response = await http.post(
@@ -122,11 +122,34 @@ class AuthService {
     }
   }
 
+  static Future<Map<String, dynamic>> resendLoginCode({
+    required String email,
+    String? role,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/resend-login-code'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim().toLowerCase(), 'role': role}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Erreur lors du renvoi');
+      }
+    } catch (e) {
+      throw Exception('Erreur de connexion: $e');
+    }
+  }
+
   // Connexion
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-    required String role,
+    String? role,
   }) async {
     try {
       final response = await http.post(

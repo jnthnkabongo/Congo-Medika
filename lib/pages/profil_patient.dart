@@ -4,6 +4,7 @@ import 'package:frontend/services/http_interceptor.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import '../theme/app_theme.dart';
 
 class ProfilPatient extends StatefulWidget {
   const ProfilPatient({super.key});
@@ -208,6 +209,7 @@ class _ProfilPatientState extends State<ProfilPatient> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(

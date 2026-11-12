@@ -3,6 +3,7 @@ import '../services/appointments_service.dart';
 import '../services/auth_service.dart';
 import 'appointment_form.dart';
 import 'dart:convert';
+import '../theme/app_theme.dart';
 
 class Calendriers extends StatefulWidget {
   const Calendriers({super.key});
@@ -349,17 +350,20 @@ class _CalendrierState extends State<Calendriers> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Rendez-vous',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Rendez-vous',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -717,9 +721,12 @@ class _CalendrierState extends State<Calendriers> {
                   children: [
                     Icon(Icons.access_time, size: 10, color: Colors.grey[500]),
                     const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                    Flexible(
+                      child: Text(
+                        time,
+                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

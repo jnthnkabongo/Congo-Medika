@@ -6,13 +6,13 @@ import 'package:frontend/services/http_interceptor.dart';
 class MessagesService {
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://192.168.1.11:3001/api/messages';
+      return 'http://10.235.140.126:3001/api/messages';
     } else if (Platform.isAndroid) {
-      return 'http://192.168.1.11:3001/api/messages';
+      return 'http://10.235.140.126:3001/api/messages';
     } else if (Platform.isIOS) {
-      return 'http://192.168.1.11:3001/api/messages';
+      return 'http://10.235.140.126:3001/api/messages';
     }
-    return 'http://192.168.1.11:3001/api/messages';
+    return 'http://10.235.140.126:3001/api/messages';
   }
 
   static Future<List<Map<String, dynamic>>> getMessagesByRoomId(

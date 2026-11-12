@@ -3,6 +3,7 @@ import 'package:frontend/services/patients_service.dart';
 import 'package:frontend/services/teleconsultations_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/pages/chats.dart';
+import '../theme/app_theme.dart';
 
 class ChatsAdmin extends StatefulWidget {
   const ChatsAdmin({super.key});
@@ -120,6 +121,7 @@ class _ChatsAdminState extends State<ChatsAdmin> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         leading: IconButton(

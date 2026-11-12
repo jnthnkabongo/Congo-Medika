@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/appointments_service.dart';
 import '../services/calls_service.dart';
 import '../services/http_interceptor.dart';
+import '../theme/app_theme.dart';
 
 class DashboardAdmins extends StatefulWidget {
   const DashboardAdmins({super.key});
@@ -175,17 +176,20 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Dashboard Admin',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Dashboard Admin',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             Container(
@@ -408,12 +412,14 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Rendez-vous du jour',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    const Expanded(
+                      child: Text(
+                        'Rendez-vous du jour',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                     Container(
@@ -470,11 +476,13 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
                           size: 32,
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          'Aucun rendez-vous aujourd\'hui',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                        Expanded(
+                          child: Text(
+                            'Aucun rendez-vous aujourd\'hui',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
                       ],
@@ -552,12 +560,15 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
                 ),
                 child: Icon(icon, color: color, size: 24),
               ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              Flexible(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

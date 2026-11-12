@@ -39,14 +39,14 @@ class BackgroundService {
       const channel = AndroidNotificationChannel(
         _channelId,
         'CongoMedika - Appels',
-        description:
-            'Maintient la connexion pour recevoir les appels entrants',
+        description: 'Maintient la connexion pour recevoir les appels entrants',
         importance: Importance.low,
       );
       final notifications = FlutterLocalNotificationsPlugin();
       await notifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
 
       final service = FlutterBackgroundService();
@@ -58,12 +58,9 @@ class BackgroundService {
           isForegroundMode: true,
           notificationChannelId: _channelId,
           initialNotificationTitle: 'CongoMedika',
-          initialNotificationContent:
-              'Disponible pour recevoir des appels',
+          initialNotificationContent: 'Disponible pour recevoir des appels',
           foregroundServiceNotificationId: _notificationId,
-          foregroundServiceTypes: const [
-            AndroidForegroundType.dataSync,
-          ],
+          foregroundServiceTypes: const [AndroidForegroundType.dataSync],
         ),
         iosConfiguration: IosConfiguration(
           autoStart: false,

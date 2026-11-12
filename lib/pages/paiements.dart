@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class Paiements extends StatefulWidget {
   const Paiements({super.key});
@@ -56,6 +57,7 @@ class _PaiementsState extends State<Paiements> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
@@ -85,23 +87,25 @@ class _PaiementsState extends State<Paiements> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total dépensé',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '\$225.00',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Total dépensé',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        const Text(
+                          '\$225.00',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -182,14 +186,17 @@ class _PaiementsState extends State<Paiements> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                payment['doctor'] as String,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Expanded(
+                child: Text(
+                  payment['doctor'] as String,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '${payment['currency']} ${payment['amount']}',
                 style: const TextStyle(
@@ -206,20 +213,40 @@ class _PaiementsState extends State<Paiements> {
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(Icons.calendar_today, size: 14, color: Colors.grey[500]),
-              const SizedBox(width: 4),
-              Text(
-                payment['date'] as String,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 160),
+                    child: Text(
+                      payment['date'] as String,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Icon(Icons.payment, size: 14, color: Colors.grey[500]),
-              const SizedBox(width: 4),
-              Text(
-                payment['method'] as String,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.payment, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 160),
+                    child: Text(
+                      payment['method'] as String,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -227,10 +254,14 @@ class _PaiementsState extends State<Paiements> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Réf: ${payment['reference']}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+              Flexible(
+                child: Text(
+                  'Réf: ${payment['reference']}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Row(
                 children: [
                   Icon(statusIcon, color: statusColor, size: 16),

@@ -51,37 +51,46 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home_rounded,
-                  label: 'Accueil',
-                  index: 0,
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home_rounded,
+                    label: 'Accueil',
+                    index: 0,
+                  ),
                 ),
-                _buildNavItem(
-                  icon: Icons.medical_services_outlined,
-                  selectedIcon: Icons.medical_services_rounded,
-                  label: 'Consultations',
-                  index: 1,
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.medical_services_outlined,
+                    selectedIcon: Icons.medical_services_rounded,
+                    label: 'Consultations',
+                    index: 1,
+                  ),
                 ),
-                _buildNavItem(
-                  icon: Icons.phone_outlined,
-                  selectedIcon: Icons.phone_rounded,
-                  label: 'Appels',
-                  index: 2,
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.phone_outlined,
+                    selectedIcon: Icons.phone_rounded,
+                    label: 'Appels',
+                    index: 2,
+                  ),
                 ),
-                _buildNavItem(
-                  icon: Icons.calendar_today_outlined,
-                  selectedIcon: Icons.calendar_today_rounded,
-                  label: 'Calendrier',
-                  index: 3,
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.calendar_today_outlined,
+                    selectedIcon: Icons.calendar_today_rounded,
+                    label: 'Rendez-vous',
+                    index: 3,
+                  ),
                 ),
-                _buildNavItem(
-                  icon: Icons.settings_outlined,
-                  selectedIcon: Icons.settings_rounded,
-                  label: 'Paramètres',
-                  index: 4,
+                Expanded(
+                  child: _buildNavItem(
+                    icon: Icons.settings_outlined,
+                    selectedIcon: Icons.settings_rounded,
+                    label: 'Paramètres',
+                    index: 4,
+                  ),
                 ),
               ],
             ),
@@ -129,16 +138,21 @@ class _MainMenuAdminState extends State<MainMenuAdmin> {
               ),
             ),
             const SizedBox(height: 6),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 300),
-              style: TextStyle(
-                color: isSelected
-                    ? const Color(0xFF8D3188)
-                    : Colors.grey.shade600,
-                fontSize: isSelected ? 12 : 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            // FittedBox : le libellé rétrécit si nécessaire pour rester
+            // entièrement visible lorsque la police système est agrandie.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 300),
+                style: TextStyle(
+                  color: isSelected
+                      ? const Color(0xFF8D3188)
+                      : Colors.grey.shade600,
+                  fontSize: isSelected ? 12 : 10,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+                child: Text(label, textAlign: TextAlign.center),
               ),
-              child: Text(label),
             ),
           ],
         ),

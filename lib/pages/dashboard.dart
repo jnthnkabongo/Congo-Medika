@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/appointments_service.dart';
 import 'dart:convert';
+import '../theme/app_theme.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -130,17 +131,20 @@ class _DashboardState extends State<Dashboard> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Dashboard',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                'Dashboard',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -530,7 +534,9 @@ class _DashboardState extends State<Dashboard> {
                                     const SizedBox(width: 12),
                                     // Time column
                                     Container(
-                                      width: 70,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 70,
+                                      ),
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 8,
                                       ),

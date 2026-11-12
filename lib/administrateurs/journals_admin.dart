@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/calls_service.dart';
 import 'package:frontend/services/auth_service.dart';
+import '../theme/app_theme.dart';
 
 class JournalsAdmin extends StatefulWidget {
   const JournalsAdmin({super.key});
@@ -166,6 +167,7 @@ class _JournalsAdminState extends State<JournalsAdmin> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: const Text(
@@ -350,9 +352,12 @@ class _JournalsAdminState extends State<JournalsAdmin> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text(
-                      time,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    Flexible(
+                      child: Text(
+                        time,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     if (duration != '-')

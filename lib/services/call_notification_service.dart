@@ -26,8 +26,9 @@ class CallNotificationService {
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
 
-    final androidSettings =
-        const AndroidInitializationSettings('@mipmap/ic_launcher');
+    final androidSettings = const AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     final iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestSoundPermission: true,
@@ -44,7 +45,10 @@ class CallNotificationService {
     );
 
     await _plugin.initialize(
-      settings: InitializationSettings(android: androidSettings, iOS: iosSettings),
+      settings: InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      ),
       onDidReceiveNotificationResponse: _handleResponse,
     );
 
@@ -52,7 +56,8 @@ class CallNotificationService {
     if (defaultTargetPlatform == TargetPlatform.android) {
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 

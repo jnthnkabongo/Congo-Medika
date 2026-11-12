@@ -4,7 +4,7 @@ import 'package:frontend/services/auth_service.dart';
 
 class PatientsService {
   static String get baseUrl {
-    return 'http://192.168.1.11:3001/api/auth';
+    return 'http://10.235.140.126:3001/api/auth';
   }
 
   static Future<List<Map<String, dynamic>>> getPatients() async {
@@ -20,7 +20,9 @@ class PatientsService {
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(data);
       } else {
-        throw Exception(data['message'] ?? 'Erreur lors de la récupération des patients');
+        throw Exception(
+          data['message'] ?? 'Erreur lors de la récupération des patients',
+        );
       }
     } catch (e) {
       throw Exception('Erreur de connexion: $e');

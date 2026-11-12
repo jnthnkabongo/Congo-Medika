@@ -13,7 +13,6 @@ class Login extends StatefulWidget {
 
 class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
-  String _selectedRole = 'patient';
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -33,10 +32,10 @@ class _LoginState extends State<Login> {
       });
 
       try {
+        // Le rôle est détecté automatiquement par le backend via l'email
         final response = await AuthService.login(
           email: _emailController.text,
           password: _passwordController.text,
-          role: _selectedRole,
         );
 
         // Le login renvoie un challengeId pour la vérification 2FA
@@ -57,7 +56,7 @@ class _LoginState extends State<Login> {
                   challengeId: response['challengeId'],
                   isLogin: true,
                   email: _emailController.text,
-                  role: _selectedRole,
+                  role: response['role'] ?? 'patient',
                 ),
               ),
             );
@@ -118,35 +117,8 @@ class _LoginState extends State<Login> {
                   ),
                   const SizedBox(height: 48),
 
-                  // Role Selection
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedRole,
-                        isExpanded: true,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'patient',
-                            child: Text('Patient'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'doctor',
-                            child: Text('Médecin'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedRole = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
+                  // Le rôle est détecté automatiquement par le backend
+                  // via l'adresse e-mail, pas besoin de le choisir.
                   const SizedBox(height: 20),
 
                   // Login Form

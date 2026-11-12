@@ -4,7 +4,7 @@ import 'package:frontend/services/http_interceptor.dart';
 
 class AppointmentsService {
   static String get baseUrl {
-    return 'http://192.168.1.11:3001/api/appointments';
+    return 'http://10.235.140.126:3001/api/appointments';
   }
 
   static Future<List<Map<String, dynamic>>> getUserAppointments() async {
