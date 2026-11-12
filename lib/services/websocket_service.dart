@@ -1,6 +1,6 @@
-import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
+import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 
 class WebSocketService {
@@ -13,14 +13,7 @@ class WebSocketService {
   socket_io.Socket? _webrtcSocket;
 
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001';
-    }
-    return 'http://10.235.140.126:3001';
+    return AppConfig.wsBaseUrl;
   }
 
   // Streams pour les événements

@@ -1,19 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/services/auth_service.dart';
 
 class MeetSaaSService {
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001/api/meet-saas';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001/api/meet-saas';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001/api/meet-saas';
-    }
-    return 'http://10.235.140.126:3001/api/meet-saas';
+    return '${AppConfig.apiBaseUrl}/api/meet-saas';
   }
 
   static Future<Map<String, dynamic>> createMeetingForTeleconsultation(

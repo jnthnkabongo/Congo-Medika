@@ -36,8 +36,11 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
   }
 
   Future<void> _initLocalNotifications() async {
-    await CallNotificationService().initialize();
+    // Assigner le callback AVANT initialize() : quand l'app est relancée
+    // par une action de notification (app tuée), la réponse peut être
+    // délivrée pendant initialize() — sans callback elle serait perdue.
     CallNotificationService().onResponse = _handleNotificationResponse;
+    await CallNotificationService().initialize();
   }
 
   @override
@@ -314,7 +317,7 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
     _callActionInProgress = false;
   }
 
-  void _rejectCall() {
+  void _rejectCall() async {
     if (_incomingCallData == null) return;
 
     _callActionInProgress = true;
@@ -323,6 +326,32 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
 
     final callerId = _incomingCallData!['callerId'];
     final teleconsultationId = _incomingCallData!['teleconsultationId'];
+
+    // Comme _acceptCall : le WebSocket est souvent déconnecté quand
+    // l'app était en arrière-plan. Attendre sa reconnexion avant
+    // d'envoyer le refus, sinon rejectCall échoue silencieusement.
+    if (!_webSocketService.isWebRTCConnected) {
+      debugPrint(
+        '[CallNotificationManager] WebSocket non connecté, attente avant refus...',
+      );
+      int attempts = 0;
+      while (!_webSocketService.isWebRTCConnected && attempts < 50) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+      if (!_webSocketService.isWebRTCConnected) {
+        debugPrint(
+          '[CallNotificationManager] ERREUR: WebSocket toujours non connecté, refus impossible',
+        );
+        if (mounted) {
+          setState(() {
+            _incomingCallData = null;
+          });
+        }
+        _callActionInProgress = false;
+        return;
+      }
+    }
 
     try {
       _webSocketService.rejectCall(

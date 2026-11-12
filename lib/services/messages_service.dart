@@ -1,18 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import 'package:frontend/services/http_interceptor.dart';
 
 class MessagesService {
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001/api/messages';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001/api/messages';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001/api/messages';
-    }
-    return 'http://10.235.140.126:3001/api/messages';
+    return '${AppConfig.apiBaseUrl}/api/messages';
   }
 
   static Future<List<Map<String, dynamic>>> getMessagesByRoomId(

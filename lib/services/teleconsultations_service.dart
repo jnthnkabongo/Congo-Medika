@@ -1,18 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import 'package:frontend/services/http_interceptor.dart';
 
 class TeleconsultationsService {
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001/api/teleconsultations';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001/api/teleconsultations';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001/api/teleconsultations';
-    }
-    return 'http://10.235.140.126:3001/api/teleconsultations';
+    return '${AppConfig.apiBaseUrl}/api/teleconsultations';
   }
 
   // Créer une téléconsultation

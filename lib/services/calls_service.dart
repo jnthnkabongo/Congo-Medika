@@ -1,18 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import 'package:frontend/services/http_interceptor.dart';
 
 class CallsService {
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001/api/calls';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001/api/calls';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001/api/calls';
-    }
-    return 'http://10.235.140.126:3001/api/calls';
+    return '${AppConfig.apiBaseUrl}/api/calls';
   }
 
   static Future<List<Map<String, dynamic>>> getUserCalls() async {

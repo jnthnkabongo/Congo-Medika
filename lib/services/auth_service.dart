@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,14 +7,7 @@ class AuthService {
   // static String baseUrl = 'http://localhost:3001/api/auth';
 
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://10.235.140.126:3001/api/auth';
-    } else if (Platform.isAndroid) {
-      return 'http://10.235.140.126:3001/api/auth';
-    } else if (Platform.isIOS) {
-      return 'http://10.235.140.126:3001/api/auth';
-    }
-    return 'http://10.235.140.126:3001/api/auth';
+    return '${AppConfig.apiBaseUrl}/api/auth';
   }
 
   static const String _tokenKey = 'auth_token';
@@ -219,22 +211,13 @@ class AuthService {
     return null;
   }
 
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
-
-  static Future<bool> isTokenExpired() async {
-    final token = await getToken();
-    if (token == null) return true;
-
+  /// Vérifie si la chaîne JWT est expirée (sans effet de bord).
+  static bool _isJwtExpired(String token) {
     try {
-      // Décoder le JWT pour vérifier l'expiration
       final parts = token.split('.');
       if (parts.length != 3) return true;
 
       final payload = parts[1];
-      // Base64 decode avec padding
       final normalizedPayload = payload
           .replaceAll('-', '+')
           .replaceAll('_', '/');
@@ -253,6 +236,57 @@ class AuthService {
     } catch (e) {
       return true;
     }
+  }
+
+  /// Échange le refresh token contre une nouvelle paire de tokens.
+  static Future<bool> refreshAccessToken() async {
+    try {
+      final refreshToken = await getRefreshToken();
+      if (refreshToken == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+
+      if (response.statusCode != 200) return false;
+
+      final data = jsonDecode(response.body);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, data['accessToken']);
+      if (data['refreshToken'] != null) {
+        await prefs.setString(_refreshTokenKey, data['refreshToken']);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Retourne un access token VALIDE : si celui stocké est expiré,
+  /// tente un refresh silencieux via le refresh token. Retourne null
+  /// (et nettoie la session) seulement si le refresh échoue aussi.
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    var token = prefs.getString(_tokenKey);
+    if (token == null) return null;
+    if (!_isJwtExpired(token)) return token;
+
+    final refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      await logout();
+      return null;
+    }
+    token = prefs.getString(_tokenKey);
+    return token;
+  }
+
+  static Future<bool> isTokenExpired() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    if (token == null) return true;
+    return _isJwtExpired(token);
   }
 
   static Future<void> logout() async {

@@ -1,10 +1,11 @@
 import 'dart:convert';
+import '../config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/services/http_interceptor.dart';
 
 class AppointmentsService {
   static String get baseUrl {
-    return 'http://10.235.140.126:3001/api/appointments';
+    return '${AppConfig.apiBaseUrl}/api/appointments';
   }
 
   static Future<List<Map<String, dynamic>>> getUserAppointments() async {

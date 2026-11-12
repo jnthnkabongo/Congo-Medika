@@ -1,10 +1,11 @@
 import 'dart:convert';
+import '../config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/services/auth_service.dart';
 
 class DoctorsService {
   static String get baseUrl {
-    return 'http://10.235.140.126:3001/api/auth';
+    return '${AppConfig.apiBaseUrl}/api/auth';
   }
 
   static Future<List<Map<String, dynamic>>> getDoctors() async {

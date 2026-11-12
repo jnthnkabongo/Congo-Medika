@@ -50,12 +50,11 @@ class HttpInterceptor {
   static Future<Map<String, String>> _getAuthHeadersWithCheck(
     Map<String, String>? additionalHeaders,
   ) async {
-    // Vérifier si le token est expiré
-    final isExpired = await AuthService.isTokenExpired();
+    // getToken() rafraîchit silencieusement le token s'il est expiré ;
+    // il ne retourne null que si le refresh token est aussi invalide.
     final token = await AuthService.getToken();
 
-    if (token == null || isExpired) {
-      // Token expiré, rediriger vers login
+    if (token == null) {
       await AuthService.logout();
       onAuthExpired?.call();
       throw Exception('Token expiré');
