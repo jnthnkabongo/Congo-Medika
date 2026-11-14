@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
+import 'auth_service.dart';
 
 class WebSocketService {
   // Singleton pattern
@@ -11,6 +12,11 @@ class WebSocketService {
 
   socket_io.Socket? _socket;
   socket_io.Socket? _webrtcSocket;
+
+  // Évite les boucles infinies : un seul refresh+reconnect automatique
+  // par session de connexion. Réinitialisé quand la connexion réussit.
+  bool _webrtcAuthRetryUsed = false;
+  bool _webrtcReconnectInProgress = false;
 
   static String get baseUrl {
     return AppConfig.wsBaseUrl;
@@ -121,6 +127,9 @@ class WebSocketService {
         return;
       }
 
+      // NB : _webrtcAuthRetryUsed n'est PAS réinitialisé ici — il l'est
+      // uniquement sur un onConnect réussi, sinon une reconnexion
+      // échouée bouclerait indéfiniment sur le refresh.
       final completer = Completer<void>();
 
       _webrtcSocket = socket_io.io(
@@ -135,6 +144,7 @@ class WebSocketService {
       _webrtcSocket!.onConnect((_) {
         debugPrint('[WebSocket] WebRTC connecté avec succès');
         debugPrint('[WebSocket] Socket ID: ${_webrtcSocket!.id}');
+        _webrtcAuthRetryUsed = false;
         if (!completer.isCompleted) {
           completer.complete();
         }
@@ -156,6 +166,24 @@ class WebSocketService {
       _webrtcSocket!.onConnectError((data) {
         debugPrint('[WebSocket] ERREUR connexion WebRTC: $data');
         debugPrint('[WebSocket] Détails erreur: ${data.toString()}');
+
+        // Token refusé/expiré : tenter UNE reconnexion avec un token
+        // rafraîchi avant de remonter l'erreur. Socket.IO réutiliserait
+        // sinon le token expiré à l'infini.
+        if (!_webrtcAuthRetryUsed && !_webrtcReconnectInProgress) {
+          _webrtcAuthRetryUsed = true;
+          debugPrint(
+            '[WebSocket] Tentative de reconnexion avec token rafraîchi',
+          );
+          unawaited(_reconnectWebRTCWithFreshToken());
+          // Libérer l'appelant : il vérifie isWebRTCConnected / poll.
+          // La nouvelle connexion complétera ses propres handlers.
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+          return;
+        }
+
         final errorMessage = 'Erreur de connexion WebRTC: $data';
         _errorController.add(errorMessage);
         if (!completer.isCompleted) {
@@ -397,6 +425,46 @@ class WebSocketService {
       'targetUserId': targetUserId,
       'teleconsultationId': teleconsultationId,
     });
+  }
+
+  /// Rafraîchit le token via AuthService.getToken() (refresh silencieux
+  /// si expiré) puis reconstruit le socket WebRTC avec le nouveau token.
+  /// Appelé automatiquement sur connect_error ; exposé aussi pour les
+  /// reconnexions manuelles.
+  Future<void> _reconnectWebRTCWithFreshToken() async {
+    if (_webrtcReconnectInProgress) return;
+    _webrtcReconnectInProgress = true;
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        _errorController.add('Session expirée, reconnexion impossible');
+        return;
+      }
+      await disconnectWebRTC();
+      await connectWebRTC(token);
+      debugPrint('[WebSocket] Reconnexion WebRTC avec token frais OK');
+    } catch (e) {
+      debugPrint('[WebSocket] ERREUR reconnexion WebRTC: $e');
+      _errorController.add('Erreur de reconnexion WebRTC: $e');
+    } finally {
+      _webrtcReconnectInProgress = false;
+    }
+  }
+
+  /// Garantit une connexion WebRTC active : si déconnecté, récupère un
+  /// token valide (refresh si nécessaire) et (re)connecte.
+  /// Retourne true si le socket est connecté à la fin.
+  Future<bool> ensureWebRTCConnection() async {
+    if (_webrtcSocket?.connected ?? false) return true;
+    final token = await AuthService.getToken();
+    if (token == null) return false;
+    try {
+      await connectWebRTC(token);
+    } catch (_) {
+      // Le socket peut quand même s'être connecté en arrière-plan
+      // (retry refresh) — on se fie à l'état réel.
+    }
+    return _webrtcSocket?.connected ?? false;
   }
 
   // Déconnexion WebRTC
