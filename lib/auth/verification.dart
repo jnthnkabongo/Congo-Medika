@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../pages/main_menu.dart';
 import '../administrateurs/main_menu.dart';
+import 'login.dart';
 import '../services/auth_service.dart';
 
 class Verification extends StatefulWidget {
@@ -124,6 +125,17 @@ class _VerificationState extends State<Verification> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Redirection : la vérification email (isLogin=false) ne
+        // retourne pas de token → retour au login. La vérification
+        // 2FA (isLogin=true) retourne un token → menu selon le rôle.
+        if (!widget.isLogin) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Login()),
+          );
+          return;
+        }
 
         // Redirection selon le rôle renvoyé par le backend
         // (détecté automatiquement via l'email), avec repli sur le rôle connu.

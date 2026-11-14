@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/auth/login.dart';
+import 'package:frontend/auth/verification.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -89,10 +90,27 @@ class _RegisterState extends State<Register> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const Login()),
-          );
+          // Le backend envoie un code de vérification email :
+          // on passe par l'écran de saisie du code avant le login.
+          final challengeId = result['challengeId'];
+          if (challengeId != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Verification(
+                  challengeId: challengeId,
+                  isLogin: false,
+                  email: _emailController.text.trim(),
+                  role: _selectedRole,
+                ),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const Login()),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {

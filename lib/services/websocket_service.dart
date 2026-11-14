@@ -475,27 +475,30 @@ class WebSocketService {
     }
   }
 
-  // Déconnexion
+  // Déconnexion : ferme les sockets mais GARDE les stream controllers
+  // ouverts — ce service est un singleton partagé, une reconnexion
+  // ultérieure doit pouvoir réutiliser les mêmes streams.
+  // Les controllers ne sont fermés que dans dispose().
   Future<void> disconnect() async {
     if (_socket != null) {
       _socket!.disconnect();
       _socket = null;
     }
     await disconnectWebRTC();
-    await _connectionController.close();
-    await _messageController.close();
-    await _errorController.close();
-    await _roomJoinedController.close();
-    await _messageReadController.close();
-    await _incomingCallController.close();
-    await _callOfferController.close();
-    await _callAnswerController.close();
-    await _iceCandidateController.close();
-    await _callEndedController.close();
   }
 
-  // Dispose pour nettoyer les ressources
+  // Dispose pour nettoyer les ressources (fin de vie de l'app)
   void dispose() {
     disconnect();
+    _connectionController.close();
+    _messageController.close();
+    _errorController.close();
+    _roomJoinedController.close();
+    _messageReadController.close();
+    _incomingCallController.close();
+    _callOfferController.close();
+    _callAnswerController.close();
+    _iceCandidateController.close();
+    _callEndedController.close();
   }
 }

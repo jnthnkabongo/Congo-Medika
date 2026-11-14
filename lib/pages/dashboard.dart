@@ -627,61 +627,6 @@ class _DashboardState extends State<Dashboard> {
                     ),
                   ),
                   SizedBox(height: 24),
-
-                  Text(
-                    'Dernières activités',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildActivityItem(
-                          'Consultation avec Dr. Kabongo',
-                          'Aujourd\'hui, 10:30',
-                          Icons.local_hospital,
-                          Colors.purple,
-                        ),
-                        Divider(height: 1, color: Colors.grey[200]),
-                        _buildActivityItem(
-                          'Livraison de médicaments',
-                          'Hier, 14:00',
-                          Icons.delivery_dining,
-                          Colors.purple,
-                        ),
-                        Divider(height: 1, color: Colors.grey[200]),
-                        _buildActivityItem(
-                          'Téléconsultation terminée',
-                          '20 Jan 2026, 09:00',
-                          Icons.video_call,
-                          Colors.purple,
-                        ),
-                        Divider(height: 1, color: Colors.grey[200]),
-                        _buildActivityItem(
-                          'Rendez-vous confirmé',
-                          '18 Jan 2026, 16:30',
-                          Icons.check_circle,
-                          Colors.purple,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

@@ -204,7 +204,7 @@ class _ConsultationsState extends State<Consultations> {
                       children: [
                         const Expanded(
                           child: Text(
-                            'Prendre rendez-vous',
+                            'Lancer une consultation',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -249,17 +249,17 @@ class _ConsultationsState extends State<Consultations> {
                                       'Dr. ${doctor['firstName']} ${doctor['lastName']}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                                        fontSize: 12,
                                       ),
                                     ),
-                                    if (doctor['specialty'] != null)
-                                      Text(
-                                        doctor['specialty'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
+                                    // if (doctor['specialty'] != null)
+                                    //   Text(
+                                    //     doctor['specialty'],
+                                    //     style: TextStyle(
+                                    //       fontSize: 10,
+                                    //       color: Colors.grey[600],
+                                    //     ),
+                                    //   ),
                                   ],
                                 ),
                               );
@@ -743,7 +743,6 @@ class _ConsultationsState extends State<Consultations> {
               ),
             ],
           ),
-          trailing: const Icon(Icons.chat, color: Color(0xFF8D3188)),
         ),
       ),
     );

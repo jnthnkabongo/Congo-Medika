@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:frontend/services/websocket_service.dart';
 import 'package:frontend/services/auth_service.dart';
@@ -39,6 +40,18 @@ class _ChatsState extends State<Chats> {
   bool _isLoading = true;
   String? _userRole;
 
+  // Abonnements aux streams du WebSocketService (singleton) —
+  // doivent être annulés dans dispose() pour éviter les setState
+  // sur un State détruit.
+  final List<StreamSubscription> _subscriptions = [];
+
+  void _cancelSubscriptions() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -71,63 +84,75 @@ class _ChatsState extends State<Chats> {
       // Connecter au WebSocket
       await _wsService.connect(token);
 
+      // Annuler les anciens listeners (ex: bouton "Reconnecter")
+      // avant de réécouter, sinon on dupliquerait les abonnements.
+      _cancelSubscriptions();
+
       // Écouter les événements
-      _wsService.onConnectionChanged.listen((connected) {
-        setState(() {
-          _isConnected = connected;
-          _isLoading = false;
-        });
+      _subscriptions.add(
+        _wsService.onConnectionChanged.listen((connected) {
+          if (!mounted) return;
+          setState(() {
+            _isConnected = connected;
+            _isLoading = false;
+          });
 
-        // Rejoindre la room seulement quand connecté
-        if (connected) {
-          _wsService.joinRoom(widget.roomId);
-        }
-      });
+          // Rejoindre la room seulement quand connecté
+          if (connected) {
+            _wsService.joinRoom(widget.roomId);
+          }
+        }),
+      );
 
-      _wsService.onMessage.listen((message) {
-        setState(() {
-          _messages.add(message);
-        });
-        _scrollToBottom();
-      });
+      _subscriptions.add(
+        _wsService.onMessage.listen((message) {
+          if (!mounted) return;
+          setState(() {
+            _messages.add(message);
+          });
+          _scrollToBottom();
+        }),
+      );
 
-      _wsService.onError.listen((error) {
-        if (mounted) {
+      _subscriptions.add(
+        _wsService.onError.listen((error) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erreur: $error'),
               backgroundColor: Colors.red,
             ),
           );
-        }
-      });
+        }),
+      );
 
-      _wsService.onRoomJoined.listen((roomId) async {
-        // Charger l'historique des messages
-        try {
-          final history = await MessagesService.getMessagesByRoomId(roomId);
-          if (mounted) {
-            setState(() {
-              _messages = history;
-            });
-            _scrollToBottom();
+      _subscriptions.add(
+        _wsService.onRoomJoined.listen((roomId) async {
+          // Charger l'historique des messages
+          try {
+            final history = await MessagesService.getMessagesByRoomId(roomId);
+            if (mounted) {
+              setState(() {
+                _messages = history;
+              });
+              _scrollToBottom();
+            }
+          } catch (e) {
+            debugPrint('[Chats] ERREUR chargement historique: $e');
           }
-        } catch (e) {
-          debugPrint('[Chats] ERREUR chargement historique: $e');
-        }
-      });
+        }),
+      );
 
       // Rejoindre la room sera fait après connexion
       // _wsService.joinRoom(widget.roomId);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur de connexion: $e')));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur de connexion: $e')));
     }
   }
 
@@ -223,9 +248,12 @@ class _ChatsState extends State<Chats> {
 
   @override
   void dispose() {
+    _cancelSubscriptions();
     _messageController.dispose();
     _scrollController.dispose();
-    _wsService.dispose();
+    // NE PAS appeler _wsService.dispose() : c'est un singleton partagé,
+    // le détruire casserait le WebSocket pour toute l'application.
+    // Le socket reste connecté pour les autres écrans.
     super.dispose();
   }
 

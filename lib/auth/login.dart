@@ -63,9 +63,15 @@ class _LoginState extends State<Login> {
           }
         }
       } catch (e) {
-        _showErrorSnackBar('Erreur de connexion: ${e.toString()}');
+        if (!mounted) return;
+        final errorMsg = e.toString();
 
-        if (mounted) {
+        // Compte existant mais email non vérifié : proposer de
+        // renvoyer le code de vérification puis saisir le code.
+        if (errorMsg.contains('vérifier votre adresse e-mail')) {
+          _showResendVerificationDialog();
+        } else {
+          _showErrorSnackBar('Erreur de connexion: $errorMsg');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Connexion échouée'),
@@ -74,9 +80,11 @@ class _LoginState extends State<Login> {
           );
         }
 
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -84,6 +92,76 @@ class _LoginState extends State<Login> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  /// Affiche une boîte de dialogue proposant de renvoyer le code de
+  /// vérification email, puis ouvre l'écran de saisie du code.
+  void _showResendVerificationDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Email non vérifié'),
+        content: const Text(
+          'Votre adresse email n\'a pas encore été vérifiée. '
+          'Souhaitez-vous recevoir un nouveau code de vérification ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Plus tard'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              try {
+                // Pas de role : le backend cherche dans patient ET doctor
+                final response = await AuthService.resendVerification(
+                  email: _emailController.text.trim(),
+                );
+                if (!mounted) return;
+                final challengeId = response['challengeId'];
+                if (challengeId != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Verification(
+                        challengeId: challengeId,
+                        isLogin: false,
+                        email: _emailController.text.trim(),
+                        role: response['role'] ?? 'patient',
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        response['message'] ?? 'Si le compte existe, un code sera envoyé.',
+                      ),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erreur: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8D3188),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Renvoyer le code'),
+          ),
+        ],
+      ),
     );
   }
 
