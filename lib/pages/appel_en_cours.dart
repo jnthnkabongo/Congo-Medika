@@ -421,6 +421,25 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       final isRenegotiation =
           data['isRenegotiation'] == true || _callEstablished;
 
+      // Ignorer les offres périmées : arrivées après la fermeture de
+      // la PeerConnection (appel terminé) ou pendant qu'on a déjà une
+      // offre locale en cours (glare — les deux côtés renégocient en
+      // même temps, ex: activation vidéo simultanée).
+      if (_webrtcService.isPeerConnectionClosed) {
+        debugPrint(
+          '[AppelEnCours] Offre ignorée : PeerConnection fermée (appel terminé)',
+        );
+        return;
+      }
+      if (isRenegotiation &&
+          _webrtcService.signalingState ==
+              RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+        debugPrint(
+          '[AppelEnCours] Offre de renégociation ignorée : offre locale déjà en cours (glare)',
+        );
+        return;
+      }
+
       debugPrint('[AppelEnCours] Offre d\'appel reçue: $data');
       final offer = RTCSessionDescription(data['sdp'], data['type']);
       await _webrtcService.setRemoteDescription(offer);

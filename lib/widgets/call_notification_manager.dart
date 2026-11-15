@@ -8,7 +8,9 @@ import '../services/auth_service.dart';
 import '../services/call_sound_service.dart';
 import '../services/call_notification_service.dart';
 import '../services/background_service.dart';
+import '../services/teleconsultations_service.dart';
 import '../pages/appel_en_cours.dart';
+import '../pages/chats.dart';
 import '../main.dart'; // Import pour navigatorKey
 
 class CallNotificationManager extends StatefulWidget {
@@ -26,6 +28,7 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
   Map<String, dynamic>? _incomingCallData;
   bool _dialogVisible = false;
   bool _callActionInProgress = false;
+  StreamSubscription? _messageSubscription;
 
   @override
   void initState() {
@@ -54,9 +57,10 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
   }
 
   void _handleNotificationResponse(NotificationResponse response) {
+    Map<String, dynamic>? payloadData;
     if (response.payload != null) {
       try {
-        _incomingCallData = Map<String, dynamic>.from(
+        payloadData = Map<String, dynamic>.from(
           jsonDecode(response.payload!),
         );
       } catch (e) {
@@ -65,6 +69,14 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
         );
       }
     }
+
+    // Notification de message : ouvrir directement la conversation
+    if (payloadData?['type'] == 'message') {
+      _openMessageChat(payloadData!);
+      return;
+    }
+
+    _incomingCallData = payloadData;
 
     switch (response.actionId) {
       case 'accept':
@@ -199,6 +211,14 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
         }
       });
 
+      // Socket messages : maintenu connecté en permanence pour que les
+      // notifications de messagerie fonctionnent hors de la page Chats.
+      // connect() est idempotent : ne recrée pas le socket s'il est déjà up.
+      await _webSocketService.connect(accessToken);
+      _messageSubscription = _webSocketService.onMessage.listen((message) {
+        _handleIncomingMessage(message);
+      });
+
       debugPrint('[CallNotificationManager] Initialisation terminée');
     } catch (e, stackTrace) {
       debugPrint('[CallNotificationManager] ERREUR: $e');
@@ -242,6 +262,89 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
         _dialogVisible = false;
       });
     });
+  }
+
+  /// Affiche une notification locale quand un message arrive alors que
+  /// l'application est en arrière-plan. En avant-plan, l'utilisateur voit
+  /// directement l'interface (évite le spam si le chat est ouvert).
+  Future<void> _handleIncomingMessage(Map<String, dynamic> message) async {
+    try {
+      debugPrint(
+        '[CallNotificationManager] Message reçu: senderId=${message['senderId']}, '
+        'type=${message['type']}, lifecycle=${WidgetsBinding.instance.lifecycleState}',
+      );
+
+      // Ignorer les messages envoyés par soi-même
+      final userData = await AuthService.getDonneesUser(AuthService.userKey);
+      final myId = userData?['id']?.toString();
+      if (myId != null && message['senderId']?.toString() == myId) {
+        debugPrint('[CallNotificationManager] Message ignoré (envoyé par soi)');
+        return;
+      }
+
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (lifecycle == AppLifecycleState.resumed) {
+        debugPrint(
+          '[CallNotificationManager] Message ignoré (app au premier plan)',
+        );
+        return;
+      }
+
+      final isAudio = message['type'] == 'audio';
+      CallNotificationService().showMessage(
+        title: isAudio ? 'Message audio' : 'Nouveau message',
+        body: isAudio
+            ? 'Message vocal'
+            : (message['content']?.toString() ?? ''),
+        payload: {
+          'roomId': message['roomId'],
+          'teleconsultationId': message['teleconsultationId'],
+          'senderType': message['senderType'],
+          'senderId': message['senderId'],
+        },
+      );
+    } catch (e) {
+      debugPrint('[CallNotificationManager] Erreur notification message: $e');
+    }
+  }
+
+  /// Ouvre la conversation correspondant à la notification tapée.
+  /// Récupère la téléconsultation pour obtenir les noms/ids du médecin.
+  Future<void> _openMessageChat(Map<String, dynamic> payload) async {
+    final roomId = payload['roomId']?.toString();
+    final teleconsultationId = payload['teleconsultationId']?.toString();
+    if (roomId == null || teleconsultationId == null) return;
+
+    var doctorName = 'Médecin';
+    int? doctorId;
+    int? patientId;
+    try {
+      final tc = await TeleconsultationsService.getTeleconsultationById(
+        teleconsultationId,
+      );
+      final firstName = tc['doctor']?['firstName']?.toString() ?? '';
+      final lastName = tc['doctor']?['lastName']?.toString() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+      if (fullName.isNotEmpty) doctorName = 'Dr. $fullName';
+      doctorId = int.tryParse(tc['doctorId']?.toString() ?? '');
+      patientId = int.tryParse(tc['patientId']?.toString() ?? '');
+    } catch (e) {
+      debugPrint(
+        '[CallNotificationManager] Téléconsultation introuvable pour notification: $e',
+      );
+    }
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (context) => Chats(
+          roomId: roomId,
+          teleconsultationId: teleconsultationId,
+          doctorName: doctorName,
+          doctorId: doctorId,
+          patientId: patientId,
+        ),
+      ),
+    );
   }
 
   String _getCallerName() {
@@ -372,6 +475,7 @@ class _CallNotificationManagerState extends State<CallNotificationManager>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _messageSubscription?.cancel();
     CallSoundService().stopRinging();
     CallNotificationService().cancelIncomingCall();
     super.dispose();

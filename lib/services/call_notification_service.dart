@@ -16,9 +16,11 @@ class CallNotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const String _channelId = 'incoming_calls';
+  static const String _messagesChannelId = 'messages';
   static const int _notificationId = 1001;
 
   bool _initialized = false;
+  int _messageNotificationId = 2000;
 
   /// Callback invoqué quand l'utilisateur touche la notification ou une action.
   void Function(NotificationResponse response)? onResponse;
@@ -118,6 +120,40 @@ class CallNotificationService {
     );
 
     debugPrint('[CallNotificationService] Notification appel entrant affichée');
+  }
+
+  /// Affiche une notification « nouveau message » (canal séparé des appels).
+  /// Le payload doit contenir `type: 'message'` pour être routé correctement.
+  Future<void> showMessage({
+    required String title,
+    required String body,
+    required Map<String, dynamic> payload,
+  }) async {
+    if (!_initialized) return;
+
+    await _plugin.show(
+      id: _messageNotificationId++,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _messagesChannelId,
+          'Messages',
+          channelDescription: 'Notifications pour les nouveaux messages',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentList: true,
+          presentSound: true,
+        ),
+      ),
+      payload: jsonEncode({'type': 'message', ...payload}),
+    );
+
+    debugPrint('[CallNotificationService] Notification message affichée');
   }
 
   Future<void> cancelIncomingCall() async {

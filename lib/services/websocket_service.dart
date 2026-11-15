@@ -75,7 +75,13 @@ class WebSocketService {
 
   // Connexion avec token JWT (pour les messages)
   Future<void> connect(String accessToken) async {
+    // Socket déjà connecté : les handlers sont déjà enregistrés sur
+    // l'instance, inutile de le détruire et de le recréer.
     if (_socket?.connected ?? false) {
+      debugPrint('[WebSocket] Socket messages déjà connecté');
+      return;
+    }
+    if (_socket != null) {
       await disconnect();
     }
 

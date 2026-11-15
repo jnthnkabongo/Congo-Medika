@@ -32,6 +32,15 @@ class WebRTCService {
   bool get hasRemoteVideo =>
       _remoteStream?.getVideoTracks().isNotEmpty ?? false;
 
+  /// État de signalisation SDP courant (stable, have-local-offer,
+  /// have-remote-offer, closed). Null si pas de PeerConnection.
+  RTCSignalingState? get signalingState => _peerConnection?.signalingState;
+
+  /// True si la PeerConnection a été fermée (appel terminé).
+  bool get isPeerConnectionClosed =>
+      _peerConnection?.signalingState ==
+      RTCSignalingState.RTCSignalingStateClosed;
+
   // Configuration STUN (utiliser des serveurs STUN publics)
   final Map<String, dynamic> _iceServers = {
     'iceServers': [
@@ -370,6 +379,10 @@ class WebRTCService {
       if (_peerConnection == null) {
         debugPrint('[WebRTC] PeerConnection null, initialisation...');
         await initializePeerConnection();
+      }
+      if (_peerConnection!.signalingState ==
+          RTCSignalingState.RTCSignalingStateClosed) {
+        throw StateError('PeerConnection fermée (appel terminé)');
       }
       await _peerConnection!.setRemoteDescription(description);
       debugPrint('[WebRTC] Description distante définie avec succès');

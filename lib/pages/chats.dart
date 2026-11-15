@@ -81,14 +81,13 @@ class _ChatsState extends State<Chats> {
         _userRole = user['role'];
       });
 
-      // Connecter au WebSocket
-      await _wsService.connect(token);
-
       // Annuler les anciens listeners (ex: bouton "Reconnecter")
       // avant de réécouter, sinon on dupliquerait les abonnements.
       _cancelSubscriptions();
 
-      // Écouter les événements
+      // Écouter les événements AVANT de connecter/rejoindre :
+      // sinon onRoomJoined (chargement de l'historique) et
+      // onConnectionChanged peuvent être émis avant l'abonnement.
       _subscriptions.add(
         _wsService.onConnectionChanged.listen((connected) {
           if (!mounted) return;
@@ -143,8 +142,25 @@ class _ChatsState extends State<Chats> {
         }),
       );
 
-      // Rejoindre la room sera fait après connexion
-      // _wsService.joinRoom(widget.roomId);
+      // Connecter au WebSocket — sans détruire la connexion existante :
+      // connect() reconnecte de zéro si déjà connecté, ce qui couperait
+      // brièvement le socket à chaque ouverture de la page.
+      if (_wsService.isConnected) {
+        // Déjà connecté : l'état est reflété immédiatement
+        // (onConnectionChanged n'émet pas "true" si la connexion
+        // existait déjà) puis on rejoint la room.
+        if (mounted) {
+          setState(() {
+            _isConnected = true;
+            _isLoading = false;
+          });
+        }
+        _wsService.joinRoom(widget.roomId);
+      } else {
+        await _wsService.connect(token);
+        // Si la connexion a réussi entre-temps, onConnectionChanged
+        // aura déjà déclenché joinRoom via le listener ci-dessus.
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

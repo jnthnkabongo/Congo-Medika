@@ -11,7 +11,8 @@ class AppConfig {
 
   /// En développement : IP du Mac sur le réseau local (téléphones sur le même WiFi)
 
-  static const String apiBaseUrl = 'http://192.168.1.4:3001'; //Le lien en local
+  static const String apiBaseUrl =
+      'http://192.168.1.176:3001'; //Le lien en local
 
   /// En production : domaine HTTPS du serveur (ex: https://api.congomedika.com)
 
