@@ -214,8 +214,10 @@ class _DashboardState extends State<Dashboard> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(10),
+          : RefreshIndicator(
+              onRefresh: _checkAuthAndLoadData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -628,6 +630,7 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   SizedBox(height: 24),
                 ],
+              ),
               ),
             ),
       floatingActionButton: _buildFloatingActionButton(),

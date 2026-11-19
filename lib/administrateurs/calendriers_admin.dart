@@ -14,11 +14,23 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
   List<Map<String, dynamic>> _appointments = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
     _loadAppointments();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAppointments() async {
@@ -265,47 +277,44 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
-        backgroundColor: const Color(0xFF8D3188),
+        //backgroundColor: const Color(0xFF8D3188),
+        backgroundColor: const Color(0xFFF1EFF1),
         elevation: 0,
         title: const Text(
           'Rendez-vous',
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
+            color: Color(0xFF8D3188),
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
+      body: RefreshIndicator(
+        onRefresh: _loadAppointments,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8D3188).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: Color(0xFF8D3188)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher un rendez-vous...',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  ),
-                ],
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un rendez-vous...',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF8D3188)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
             const SizedBox(height: 20),
@@ -367,7 +376,8 @@ class _CalendriersAdminState extends State<CalendriersAdmin> {
               ),
           ],
         ),
-      ),
+          ),
+        ),
     );
   }
 

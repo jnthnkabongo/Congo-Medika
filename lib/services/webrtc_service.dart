@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'websocket_service.dart';
+import 'audio_route_service.dart';
 
 class WebRTCService {
   RTCPeerConnection? _peerConnection;
@@ -74,6 +75,8 @@ class WebRTCService {
       debugPrint('[WebRTC] Configuration ICE: $configuration');
 
       _peerConnection = await createPeerConnection(configuration);
+      AudioRouteService.ensureInitialized();
+      AudioRouteService.setCallActive(true);
       debugPrint('[WebRTC] PeerConnection créée avec succès');
 
       _peerConnection!.onIceCandidate = (candidate) {
@@ -508,12 +511,25 @@ class WebRTCService {
     }
   }
 
-  Future<void> setSpeakerphoneOn(bool enabled) async {
+  /// Active/désactive le haut-parleur. Sur Android, le routage est
+  /// délégué à AudioRouteService qui privilégie casque Bluetooth >
+  /// casque filaire > oreillette quand speakerOn=false.
+  /// Retourne true si le haut-parleur est réellement actif.
+  Future<bool> setSpeakerphoneOn(bool enabled) async {
     try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final speakerActive = await AudioRouteService.setAudioRoute(
+          speakerOn: enabled,
+        );
+        debugPrint('[WebRTC] Haut-parleur: $speakerActive');
+        return speakerActive;
+      }
       await Helper.setSpeakerphoneOn(enabled);
       debugPrint('[WebRTC] Haut-parleur: $enabled');
+      return enabled;
     } catch (e) {
       debugPrint('[WebRTC] Erreur configuration haut-parleur: $e');
+      return enabled;
     }
   }
 
@@ -534,6 +550,7 @@ class WebRTCService {
     await _localStream?.dispose();
     await _remoteStream?.dispose();
     await _peerConnection?.close();
+    await AudioRouteService.resetAudioRoute();
     await _localStreamController.close();
     await _remoteStreamController.close();
     await _callStateController.close();

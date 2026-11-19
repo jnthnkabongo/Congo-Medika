@@ -89,7 +89,8 @@ class _ParametresAdminState extends State<ParametresAdmin> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
-        backgroundColor: const Color(0xFF8D3188),
+        //backgroundColor: const Color(0xFF8D3188),
+        backgroundColor: const Color(0xFFF1EFF1),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -98,8 +99,8 @@ class _ParametresAdminState extends State<ParametresAdmin> {
               child: Text(
                 'Paramètres',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
+                  color: Color(0xFF8D3188),
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -258,7 +259,7 @@ class _ParametresAdminState extends State<ParametresAdmin> {
 
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),

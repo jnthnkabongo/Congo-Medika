@@ -186,13 +186,16 @@ class _ChatsAdminState extends State<ChatsAdmin> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                : RefreshIndicator(
+                    onRefresh: _loadPatients,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
                     itemCount: _filteredPatients.length,
                     itemBuilder: (context, index) {
                       final patient = _filteredPatients[index];
                       return _buildPatientCard(patient);
-                    },
+                      },
+                    ),
                   ),
           ),
         ],

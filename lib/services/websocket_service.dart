@@ -17,6 +17,8 @@ class WebSocketService {
   // par session de connexion. Réinitialisé quand la connexion réussit.
   bool _webrtcAuthRetryUsed = false;
   bool _webrtcReconnectInProgress = false;
+  bool _messagesAuthRetryUsed = false;
+  bool _messagesReconnectInProgress = false;
 
   static String get baseUrl {
     return AppConfig.wsBaseUrl;
@@ -93,11 +95,37 @@ class WebSocketService {
     );
 
     _socket!.onConnect((_) {
+      _messagesAuthRetryUsed = false;
       _connectionController.add(true);
     });
 
-    _socket!.onDisconnect((_) {
+    _socket!.onDisconnect((reason) {
       _connectionController.add(false);
+      // 'io server disconnect' = le serveur a fermé la connexion
+      // (token expiré côté gateway). Socket.IO ne retente PAS tout
+      // seul dans ce cas — on reconnecte avec un token frais.
+      if (reason == 'io server disconnect' &&
+          !_messagesAuthRetryUsed &&
+          !_messagesReconnectInProgress) {
+        _messagesAuthRetryUsed = true;
+        debugPrint(
+          '[WebSocket] Messages déconnecté par le serveur, reconnexion avec token frais',
+        );
+        unawaited(_reconnectMessagesWithFreshToken());
+      }
+    });
+
+    _socket!.onConnectError((data) {
+      debugPrint('[WebSocket] ERREUR connexion messages: $data');
+      if (!_messagesAuthRetryUsed && !_messagesReconnectInProgress) {
+        _messagesAuthRetryUsed = true;
+        debugPrint(
+          '[WebSocket] Messages : reconnexion avec token rafraîchi',
+        );
+        unawaited(_reconnectMessagesWithFreshToken());
+        return;
+      }
+      _errorController.add('Erreur de connexion messages: $data');
     });
 
     _socket!.on('joinedRoom', (data) {
@@ -156,10 +184,23 @@ class WebSocketService {
         }
       });
 
-      _webrtcSocket!.onDisconnect((_) {
+      _webrtcSocket!.onDisconnect((reason) {
         final transportName =
             _webrtcSocket?.io.engine?.transport?.name ?? 'unknown';
-        debugPrint('[WebSocket] WebRTC déconnecté, raison: $transportName');
+        debugPrint(
+          '[WebSocket] WebRTC déconnecté, raison: $reason ($transportName)',
+        );
+        // Déconnexion initiée par le serveur (token expiré rejeté par
+        // la gateway) : Socket.IO ne retente pas seul — refresh + reconnect.
+        if (reason == 'io server disconnect' &&
+            !_webrtcAuthRetryUsed &&
+            !_webrtcReconnectInProgress) {
+          _webrtcAuthRetryUsed = true;
+          debugPrint(
+            '[WebSocket] WebRTC déconnecté par le serveur, reconnexion avec token frais',
+          );
+          unawaited(_reconnectWebRTCWithFreshToken());
+        }
         // Ne pas marquer le completer comme erreur pour permettre les reconnexions futures
         if (!completer.isCompleted) {
           debugPrint(
@@ -454,6 +495,30 @@ class WebSocketService {
       _errorController.add('Erreur de reconnexion WebRTC: $e');
     } finally {
       _webrtcReconnectInProgress = false;
+    }
+  }
+
+  /// Même logique que pour WebRTC mais sur le socket messages :
+  /// refresh silencieux du token puis reconnexion. Ne touche PAS au
+  /// socket WebRTC (disconnect() fermerait les deux).
+  Future<void> _reconnectMessagesWithFreshToken() async {
+    if (_messagesReconnectInProgress) return;
+    _messagesReconnectInProgress = true;
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        _errorController.add('Session expirée, reconnexion messages impossible');
+        return;
+      }
+      _socket?.disconnect();
+      _socket = null;
+      await connect(token);
+      debugPrint('[WebSocket] Reconnexion messages avec token frais OK');
+    } catch (e) {
+      debugPrint('[WebSocket] ERREUR reconnexion messages: $e');
+      _errorController.add('Erreur de reconnexion messages: $e');
+    } finally {
+      _messagesReconnectInProgress = false;
     }
   }
 

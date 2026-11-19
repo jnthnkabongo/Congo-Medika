@@ -90,6 +90,10 @@ class _ConsultationsState extends State<Consultations> {
     try {
       final teleconsultations =
           await TeleconsultationsService.getPatientTeleconsultations();
+      debugPrint(
+        '[Consultations] ${teleconsultations.length} téléconsultation(s) chargée(s) — '
+        'doctorIds: ${teleconsultations.map((t) => '${t['doctorId']}(id=${t['id']},status=${t['status']})').join(', ')}',
+      );
       setState(() {
         _teleconsultations = teleconsultations;
       });
@@ -123,7 +127,12 @@ class _ConsultationsState extends State<Consultations> {
     });
   }
 
-  void _openChatForDoctor(Map<String, dynamic> doctor) {
+  Future<void> _openChatForDoctor(Map<String, dynamic> doctor) async {
+    debugPrint(
+      '[Consultations] Tap médecin id=${doctor['id']} '
+      '(${doctor['firstName']} ${doctor['lastName']}) — '
+      '${_teleconsultations.length} téléconsultation(s) en mémoire',
+    );
     // Chercher une téléconsultation existante avec ce médecin
     final existingTeleconsultation = _teleconsultations
         .cast<Map<String, dynamic>?>()
@@ -131,11 +140,16 @@ class _ConsultationsState extends State<Consultations> {
           (tc) => tc != null && tc['doctorId'] == doctor['id'],
           orElse: () => null,
         );
+    debugPrint(
+      '[Consultations] Recherche doctorId=${doctor['id']} → '
+      '${existingTeleconsultation != null ? 'trouvé id=${existingTeleconsultation['id']}' : 'AUCUNE correspondance'}',
+    );
 
     if (existingTeleconsultation != null &&
         existingTeleconsultation.isNotEmpty) {
-      // Ouvrir le chat existant
-      Navigator.push(
+      // Ouvrir le chat existant puis rafraîchir la liste au retour
+      // (une consultation peut avoir été créée entre-temps)
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => Chats(
@@ -151,17 +165,85 @@ class _ConsultationsState extends State<Consultations> {
           ),
         ),
       );
+      if (mounted) _loadTeleconsultations();
     } else {
-      // Pas de téléconsultation en cours, informer l'utilisateur
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Aucune consultation en cours avec Dr. ${doctor['firstName']} ${doctor['lastName']}. Utilisez le bouton + pour programmer un rendez-vous.',
+      // Pas de téléconsultation : vérifier s'il existe un rendez-vous
+      // avec ce médecin. Les rendez-vous créés depuis la page Rendez-vous
+      // n'ont pas de téléconsultation — on la crée à la volée.
+      Map<String, dynamic>? teleconsultation;
+      try {
+        final appointments = await AppointmentsService.getUserAppointments();
+        final matching = appointments
+            .where(
+              (a) => a['doctorId']?.toString() == doctor['id'].toString(),
+            )
+            .toList();
+        debugPrint(
+          '[Consultations] ${matching.length} rendez-vous trouvé(s) avec doctorId=${doctor['id']}',
+        );
+
+        if (matching.isNotEmpty) {
+          final user = await AuthService.getDonneesUser(
+            AuthService.userKey,
+          );
+          final patientId = int.tryParse(
+            (user?['id'] ?? user?['sub'] ?? '').toString(),
+          );
+          final doctorId = int.tryParse(doctor['id'].toString());
+          final appointmentId = int.tryParse(matching.first['id'].toString());
+
+          if (patientId != null && doctorId != null && appointmentId != null) {
+            teleconsultation =
+                await TeleconsultationsService.createTeleconsultation(
+                  appointmentId: appointmentId,
+                  patientId: patientId,
+                  doctorId: doctorId,
+                );
+            debugPrint(
+              '[Consultations] Téléconsultation créée à la volée: id=${teleconsultation['id']}, roomId=${teleconsultation['roomId']}',
+            );
+            await _loadTeleconsultations();
+          }
+        }
+      } catch (e) {
+        debugPrint('[Consultations] ERREUR création téléconsultation: $e');
+      }
+
+      final createdTeleconsultation = teleconsultation;
+      if (createdTeleconsultation != null && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Chats(
+              roomId: createdTeleconsultation['roomId'],
+              teleconsultationId: createdTeleconsultation['id'],
+              doctorName:
+                  'Dr. ${doctor['firstName']} ${doctor['lastName']}',
+              doctorId: doctor['id'] is String
+                  ? int.parse(doctor['id'])
+                  : doctor['id'],
+              patientId: int.tryParse(
+                ((_userData?['id'] ?? _userData?['sub']) ?? '').toString(),
+              ),
+            ),
           ),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+        if (mounted) _loadTeleconsultations();
+        return;
+      }
+
+      // Ni téléconsultation ni rendez-vous : informer l'utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Aucune consultation ni rendez-vous avec Dr. ${doctor['firstName']} ${doctor['lastName']}. Utilisez le bouton + pour programmer un rendez-vous.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -476,7 +558,7 @@ class _ConsultationsState extends State<Consultations> {
                                         if (mounted) {
                                           Navigator.pop(context);
                                           if (mounted) {
-                                            Navigator.push(
+                                            await Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) => Chats(
@@ -499,6 +581,12 @@ class _ConsultationsState extends State<Consultations> {
                                                 ),
                                               ),
                                             );
+                                            // Recharger les téléconsultations
+                                            // pour que le médecin apparaisse
+                                            // comme "consultation en cours"
+                                            if (mounted) {
+                                              _loadTeleconsultations();
+                                            }
                                           }
                                         }
                                       } catch (e) {
@@ -675,7 +763,10 @@ class _ConsultationsState extends State<Consultations> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _loadDoctors,
+                    onRefresh: () async {
+                      await _loadDoctors();
+                      await _loadTeleconsultations();
+                    },
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _filteredDoctors.length,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/auth/login.dart';
+import 'package:frontend/auth/onboarding.dart';
 import 'package:frontend/theme/app_theme.dart';
 import 'package:frontend/widgets/call_notification_manager.dart';
 import 'package:frontend/services/http_interceptor.dart';
@@ -13,7 +14,7 @@ void main() {
     final context = navigatorKey.currentContext;
     if (context != null) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const Login()),
+        MaterialPageRoute(builder: (context) => const Onboarding()),
         (route) => false,
       );
     }

@@ -177,7 +177,8 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
-        backgroundColor: const Color(0xFF8D3188),
+        // backgroundColor: const Color(0xFF8D3188),
+        backgroundColor: const Color(0xFFF1EFF1),
         elevation: 0,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -186,8 +187,8 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
               child: Text(
                 'Dashboard Admin',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
+                  color: Color(0xFF8D3188),
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -209,8 +210,13 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(10),
+          RefreshIndicator(
+            onRefresh: () async {
+              await _loadUser();
+              await Future.wait([_loadAppointments(), _loadStats()]);
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -511,6 +517,7 @@ class _DashboardAdminsState extends State<DashboardAdmins> {
                   ),
                 const SizedBox(height: 24),
               ],
+              ),
             ),
           ),
         ],

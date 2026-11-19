@@ -14,14 +14,26 @@ class _JournalsAdminState extends State<JournalsAdmin> {
   List<Map<String, dynamic>> _calls = [];
   bool _isLoading = true;
   String? _error;
-  String? _searchQuery;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   String? _currentUserRole;
   String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
     _loadCalls();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCalls() async {
@@ -57,7 +69,7 @@ class _JournalsAdminState extends State<JournalsAdmin> {
   }
 
   List<Map<String, dynamic>> _getFilteredCalls() {
-    if (_searchQuery == null || _searchQuery!.isEmpty) {
+    if (_searchQuery.isEmpty) {
       return _calls;
     }
 
@@ -67,7 +79,7 @@ class _JournalsAdminState extends State<JournalsAdmin> {
         _currentUserRole,
         _currentUserId,
       );
-      return contactName.toLowerCase().contains(_searchQuery!.toLowerCase());
+      return contactName.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
   }
 
@@ -168,13 +180,14 @@ class _JournalsAdminState extends State<JournalsAdmin> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
-        backgroundColor: const Color(0xFF8D3188),
+        //backgroundColor: const Color(0xFF8D3188),
+        backgroundColor: const Color(0xFFF1EFF1),
         elevation: 0,
         title: const Text(
           'Journal d\'appels',
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
+            color: Color(0xFF8D3188),
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -208,36 +221,32 @@ class _JournalsAdminState extends State<JournalsAdmin> {
 
     final filteredCalls = _getFilteredCalls();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+    return RefreshIndicator(
+      onRefresh: _loadCalls,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF8D3188).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: Color(0xFF8D3188)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher dans le journal...',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ),
-                ),
-              ],
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Rechercher dans le journal...',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF8D3188)),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey[100],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
           const SizedBox(height: 20),
@@ -267,6 +276,7 @@ class _JournalsAdminState extends State<JournalsAdmin> {
               (entry) => _buildJournalSection(entry.key, entry.value),
             ),
         ],
+        ),
       ),
     );
   }

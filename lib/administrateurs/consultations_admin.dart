@@ -12,22 +12,26 @@ class ConsultationsAdmin extends StatefulWidget {
 }
 
 class _ConsultationsAdminState extends State<ConsultationsAdmin> {
-  String _selectedFilter = 'Tous';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   List<Map<String, dynamic>> _teleconsultations = [];
   bool _isLoading = true;
-
-  final List<String> _filters = [
-    'Tous',
-    'waiting',
-    'active',
-    'completed',
-    'cancelled',
-  ];
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
     _loadTeleconsultations();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTeleconsultations() async {
@@ -51,12 +55,18 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
   }
 
   List<Map<String, dynamic>> get _filteredTeleconsultations {
-    if (_selectedFilter == 'Tous') {
-      return _teleconsultations;
-    }
-    return _teleconsultations
-        .where((tc) => tc['status'] == _selectedFilter)
-        .toList();
+    if (_searchQuery.isEmpty) return _teleconsultations;
+    return _teleconsultations.where((tc) {
+      final patient = tc['patient'] as Map<String, dynamic>? ?? {};
+      final appointment = tc['appointment'] as Map<String, dynamic>? ?? {};
+      final haystack = [
+        '${patient['firstName']} ${patient['lastName']}',
+        '${patient['email']}',
+        '${appointment['reason']}',
+        _getStatusIcon(tc['status'] ?? ''),
+      ].join(' ').toLowerCase();
+      return haystack.contains(_searchQuery);
+    }).toList();
   }
 
   void _openChat(Map<String, dynamic> consultation) async {
@@ -106,7 +116,7 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'waiting':
-        return Colors.orange;
+        return const Color(0xFF8D3188);
       case 'active':
         return Colors.blue;
       case 'completed':
@@ -139,13 +149,14 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         toolbarHeight: AppTheme.adaptiveToolbarHeight(context),
-        backgroundColor: const Color(0xFF8D3188),
+        //backgroundColor: const Color(0xFF8D3188),
+        backgroundColor: const Color(0xFFF1EFF1),
         elevation: 0,
         title: const Text(
-          'Gestion des consultations',
+          'Messagerie patients',
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
+            color: Color(0xFF8D3188),
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -175,31 +186,34 @@ class _ConsultationsAdminState extends State<ConsultationsAdmin> {
                   children: [
                     const SizedBox(height: 16),
 
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _filters.map((filter) {
-                          final isSelected = _selectedFilter == filter;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(filter),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedFilter = filter;
-                                });
-                              },
-                              selectedColor: const Color(0xFF8D3188),
-                              checkmarkColor: Colors.white,
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.black87,
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Rechercher par nom, email, motif ou statut...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Color(0xFF8D3188),
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

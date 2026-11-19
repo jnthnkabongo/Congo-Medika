@@ -430,39 +430,47 @@ class _CalendrierState extends State<Calendriers> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8D3188).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, color: const Color(0xFF8D3188)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Rechercher un rendez-vous...',
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ),
-                        ),
-                      ],
+          : Column(
+              children: [
+                // Barre de recherche fixe en haut
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.white,
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un rendez-vous...',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF8D3188),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                ),
+                // Les cartes défilent en dessous de la zone de recherche
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadAppointments,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
 
                   Text(
                     'Mes rendez-vous',
@@ -649,8 +657,12 @@ class _CalendrierState extends State<Calendriers> {
                         ),
                       );
                     }),
-                ],
-              ),
+                      ],
+                    ),
+                    ),
+                  ),
+                ),
+              ],
             ),
       floatingActionButton: _buildFloatingActionButton(),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/webrtc_service.dart';
 import '../services/websocket_service.dart';
 import '../services/auth_service.dart';
+import '../services/audio_route_service.dart';
 
 class AppelEnCours extends StatefulWidget {
   final String? meetingId;
@@ -96,13 +97,20 @@ class _AppelEnCoursState extends State<AppelEnCours> {
         '[AppelEnCours] teleconsultationId: ${widget.teleconsultationId}',
       );
 
-      // Forcer le haut-parleur pour Android et synchroniser l'état UI
+      // Route audio : si un casque (fil. ou BT) est branché, le son y
+      // va directement ; sinon on force le haut-parleur (comportement
+      // habituel des apps d'appel) et on synchronise l'état UI.
       try {
-        await _webrtcService.setSpeakerphoneOn(true);
-        _isSpeakerOn = true;
-        debugPrint('[AppelEnCours] Haut-parleur activé');
+        final hasHeadset = await AudioRouteService.hasExternalAudioDevice();
+        final speakerOn = await _webrtcService.setSpeakerphoneOn(
+          !hasHeadset,
+        );
+        _isSpeakerOn = speakerOn;
+        debugPrint(
+          '[AppelEnCours] Audio initialisé — haut-parleur: $speakerOn, casque: $hasHeadset',
+        );
       } catch (e) {
-        debugPrint('[AppelEnCours] Erreur activation haut-parleur: $e');
+        debugPrint('[AppelEnCours] Erreur configuration audio: $e');
       }
 
       // Initialiser les renderers vidéo
@@ -582,8 +590,11 @@ class _AppelEnCoursState extends State<AppelEnCours> {
 
   void _toggleSpeaker() async {
     final newSpeakerOn = !_isSpeakerOn;
+    bool actualSpeakerOn;
     try {
-      await _webrtcService.setSpeakerphoneOn(newSpeakerOn);
+      actualSpeakerOn = await _webrtcService.setSpeakerphoneOn(
+        newSpeakerOn,
+      );
     } catch (e) {
       debugPrint('[AppelEnCours] ERREUR haut-parleur: $e');
       _showError('Impossible de changer le mode audio');
@@ -591,7 +602,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
     }
     if (mounted) {
       setState(() {
-        _isSpeakerOn = newSpeakerOn;
+        _isSpeakerOn = actualSpeakerOn;
       });
     }
   }
@@ -602,10 +613,13 @@ class _AppelEnCoursState extends State<AppelEnCours> {
   /// reroutent l'audio vers l'oreillette lors de la renégociation.
   Future<void> _ensureSpeakerOn() async {
     try {
-      await _webrtcService.setSpeakerphoneOn(true);
-      if (mounted && !_isSpeakerOn) {
+      // Un casque branché garde la priorité sur le haut-parleur,
+      // même en appel vidéo.
+      if (await AudioRouteService.hasExternalAudioDevice()) return;
+      final speakerOn = await _webrtcService.setSpeakerphoneOn(true);
+      if (mounted && _isSpeakerOn != speakerOn) {
         setState(() {
-          _isSpeakerOn = true;
+          _isSpeakerOn = speakerOn;
         });
       }
     } catch (e) {

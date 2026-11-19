@@ -223,8 +223,10 @@ class _ProfilPatientState extends State<ProfilPatient> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+          : RefreshIndicator(
+              onRefresh: _loadUserData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -523,6 +525,7 @@ class _ProfilPatientState extends State<ProfilPatient> {
                     ),
                   ],
                 ),
+              ),
               ),
             ),
     );

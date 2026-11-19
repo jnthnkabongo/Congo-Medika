@@ -16,6 +16,7 @@ class _JournalState extends State<Journal> {
   bool _isLoading = true;
   String? _error;
   String? _searchQuery;
+  final TextEditingController _searchController = TextEditingController();
   String? _currentUserRole;
   String? _currentUserId;
   Map<String, dynamic>? _userData;
@@ -24,6 +25,12 @@ class _JournalState extends State<Journal> {
   void initState() {
     super.initState();
     _loadCalls();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCalls() async {
@@ -269,68 +276,82 @@ class _JournalState extends State<Journal> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8D3188).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+          : Column(
+              children: [
+                // Barre de recherche fixe en haut
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.white,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un médecin...',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF8D3188),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, color: const Color(0xFF8D3188)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Rechercher dans le journal...',
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
                   ),
-                  const SizedBox(height: 20),
-                  if (_getFilteredCalls().isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.phone_disabled,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Aucun appel enregistré',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
+                ),
+                // Les cartes défilent en dessous de la zone de recherche
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadCalls,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        if (_getFilteredCalls().isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.phone_disabled,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Aucun appel enregistré',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    ..._groupCallsByDate(_getFilteredCalls()).entries.map(
-                      (entry) => _buildJournalSection(entry.key, entry.value),
+                          )
+                        else
+                          ..._groupCallsByDate(_getFilteredCalls()).entries.map(
+                            (entry) =>
+                                _buildJournalSection(entry.key, entry.value),
+                          ),
+                      ],
                     ),
-                ],
-              ),
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }

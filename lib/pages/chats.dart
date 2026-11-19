@@ -107,7 +107,20 @@ class _ChatsState extends State<Chats> {
         _wsService.onMessage.listen((message) {
           if (!mounted) return;
           setState(() {
-            _messages.add(message);
+            // Si un message optimiste identique existe (ajouté à
+            // l'envoi), on le remplace par la version serveur au lieu
+            // d'ajouter un doublon.
+            final pendingIndex = _messages.indexWhere(
+              (m) =>
+                  m['_pending'] == true &&
+                  m['content'] == message['content'] &&
+                  m['senderType'] == message['senderType'],
+            );
+            if (pendingIndex >= 0) {
+              _messages[pendingIndex] = message;
+            } else {
+              _messages.add(message);
+            }
           });
           _scrollToBottom();
         }),
@@ -132,7 +145,31 @@ class _ChatsState extends State<Chats> {
             final history = await MessagesService.getMessagesByRoomId(roomId);
             if (mounted) {
               setState(() {
-                _messages = history;
+                // Fusionner au lieu d'écraser : l'historique fait foi
+                // pour les ids connus, mais on conserve les messages
+                // optimistes (_pending) et tout message reçu pendant
+                // le chargement qui ne serait pas encore en base.
+                final merged = <String, Map<String, dynamic>>{};
+                for (final m in _messages) {
+                  final id = m['id']?.toString();
+                  if (id != null) merged[id] = m;
+                }
+                for (final h in history) {
+                  merged[h['id']?.toString() ?? h['uuid'].toString()] = h;
+                }
+                _messages = [
+                  ...merged.values,
+                  ..._messages.where((m) => m['_pending'] == true),
+                ]..sort((a, b) {
+                    final ta = DateTime.tryParse(
+                      a['createdAt']?.toString() ?? '',
+                    );
+                    final tb = DateTime.tryParse(
+                      b['createdAt']?.toString() ?? '',
+                    );
+                    if (ta == null || tb == null) return 0;
+                    return ta.compareTo(tb);
+                  });
               });
               _scrollToBottom();
             }
@@ -172,6 +209,39 @@ class _ChatsState extends State<Chats> {
     }
   }
 
+  /// Recharge l'historique des messages (pull-to-refresh) en fusionnant
+  /// avec la liste courante pour ne pas perdre les messages optimistes
+  /// ou recus pendant le chargement.
+  Future<void> _refreshMessages() async {
+    try {
+      final history = await MessagesService.getMessagesByRoomId(
+        widget.roomId,
+      );
+      if (!mounted) return;
+      setState(() {
+        final merged = <String, Map<String, dynamic>>{};
+        for (final m in _messages) {
+          final id = m['id']?.toString();
+          if (id != null) merged[id] = m;
+        }
+        for (final h in history) {
+          merged[h['id']?.toString() ?? h['uuid'].toString()] = h;
+        }
+        _messages = [
+          ...merged.values,
+          ..._messages.where((m) => m['_pending'] == true),
+        ]..sort((a, b) {
+            final ta = DateTime.tryParse(a['createdAt']?.toString() ?? '');
+            final tb = DateTime.tryParse(b['createdAt']?.toString() ?? '');
+            if (ta == null || tb == null) return 0;
+            return ta.compareTo(tb);
+          });
+      });
+    } catch (e) {
+      debugPrint('[Chats] ERREUR refresh historique: $e');
+    }
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -195,13 +265,37 @@ class _ChatsState extends State<Chats> {
       return;
     }
 
+    final content = _messageController.text.trim();
+    final pendingMsg = <String, dynamic>{
+      'id': null,
+      'uuid': null,
+      'content': content,
+      'senderType': _userRole,
+      'type': 'text',
+      'createdAt': DateTime.now().toIso8601String(),
+      '_pending': true,
+    };
     try {
-      _wsService.sendMessage(
-        roomId: widget.roomId,
-        content: _messageController.text.trim(),
-      );
+      // Ajout optimiste : le message s'affiche immédiatement, même si
+      // l'écho newMessage tarde ou si l'émetteur n'est plus dans la
+      // room (reconnexion). L'écho serveur le remplacera (dédup
+      // dans le listener onMessage).
+      if (mounted) {
+        setState(() {
+          _messages.add(pendingMsg);
+        });
+        _scrollToBottom();
+      }
+      _wsService.sendMessage(roomId: widget.roomId, content: content);
       _messageController.clear();
     } catch (e) {
+      // Envoi impossible : retirer le message optimiste pour ne pas
+      // afficher un message jamais transmis.
+      if (mounted) {
+        setState(() {
+          _messages.remove(pendingMsg);
+        });
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Erreur d\'envoi: $e')));
@@ -296,7 +390,12 @@ class _ChatsState extends State<Chats> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.person, color: Color(0xFF8D3188)),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/logo-congo-medika-1.webp',
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -374,10 +473,13 @@ class _ChatsState extends State<Chats> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 48,
-                            color: Colors.grey[400],
+                          ClipOval(
+                            child: Image.asset(
+                              'assets/images/logo-congo-medika-1.webp',
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -387,8 +489,10 @@ class _ChatsState extends State<Chats> {
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      controller: _scrollController,
+                  : RefreshIndicator(
+                      onRefresh: _refreshMessages,
+                      child: ListView.builder(
+                        controller: _scrollController,
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
@@ -399,6 +503,7 @@ class _ChatsState extends State<Chats> {
                           _formatTime(message['createdAt']),
                         );
                       },
+                      ),
                     ),
             ),
           Container(
