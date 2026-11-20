@@ -11,13 +11,13 @@ class AppConfig {
 
   /// En développement : IP du Mac sur le réseau local (téléphones sur le même WiFi)
 
-  static const String apiBaseUrl =
-      'http://192.168.1.12:3001'; //Le lien en local
+  //static const String apiBaseUrl =
+      //'http://192.168.1.12:3001'; //Le lien en local
 
   /// En production : domaine HTTPS du serveur (ex: https://api.congomedika.com)
 
-  //static const String apiBaseUrl =
-  //'http://217.76.58.7:3001'; //Le lien en production
+  static const String apiBaseUrl =
+  'http://217.76.58.7:3001'; //Le lien en production
 
   /// URL de base du WebSocket WebRTC (sans le suffixe /webrtc)
   /// Socket.IO fonctionne aussi en HTTPS/wss en production.
