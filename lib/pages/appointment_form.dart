@@ -237,7 +237,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
         backgroundColor: const Color(0xFF8D3188),
         elevation: 0,
         title: Text(
-          _isEditing ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous',
+          _isEditing ? 'Modifiers le rendez-vous' : 'Nouveau rendez-vous',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
