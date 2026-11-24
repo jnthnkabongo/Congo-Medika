@@ -102,9 +102,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
       // habituel des apps d'appel) et on synchronise l'état UI.
       try {
         final hasHeadset = await AudioRouteService.hasExternalAudioDevice();
-        final speakerOn = await _webrtcService.setSpeakerphoneOn(
-          !hasHeadset,
-        );
+        final speakerOn = await _webrtcService.setSpeakerphoneOn(!hasHeadset);
         _isSpeakerOn = speakerOn;
         debugPrint(
           '[AppelEnCours] Audio initialisé — haut-parleur: $speakerOn, casque: $hasHeadset',
@@ -592,9 +590,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
     final newSpeakerOn = !_isSpeakerOn;
     bool actualSpeakerOn;
     try {
-      actualSpeakerOn = await _webrtcService.setSpeakerphoneOn(
-        newSpeakerOn,
-      );
+      actualSpeakerOn = await _webrtcService.setSpeakerphoneOn(newSpeakerOn);
     } catch (e) {
       debugPrint('[AppelEnCours] ERREUR haut-parleur: $e');
       _showError('Impossible de changer le mode audio');
@@ -807,7 +803,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Dr. Jean-Pierre Kabongo',
+                  'Congo Medika',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -838,7 +834,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                         child: _buildCallButton(
                           icon: _isMuted ? Icons.mic_off : Icons.mic,
                           label: _isMuted ? 'Désactivé' : 'Micro',
-                          color: _isMuted ? Colors.red : Colors.blue,
+                          color: _isMuted ? Colors.white : Colors.blue,
                           onPressed: _toggleMute,
                         ),
                       ),
@@ -848,7 +844,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                               ? Icons.volume_up
                               : Icons.volume_off,
                           label: _isSpeakerOn ? 'Haut-parleur' : 'Silencieux',
-                          color: _isSpeakerOn ? Colors.blue : Colors.grey,
+                          color: _isSpeakerOn ? Colors.white : Colors.grey,
                           onPressed: _toggleSpeaker,
                         ),
                       ),
@@ -856,7 +852,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                         child: _buildCallButton(
                           icon: Icons.videocam,
                           label: 'Vidéo',
-                          color: Colors.blue,
+                          color: Colors.white,
                           onPressed: _toggleVideo,
                         ),
                       ),
@@ -1015,7 +1011,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                       child: _buildCallButton(
                         icon: _isMuted ? Icons.mic_off : Icons.mic,
                         label: _isMuted ? 'Désactivé' : 'Micro',
-                        color: _isMuted ? Colors.red : Colors.blue,
+                        color: _isMuted ? Colors.white : Colors.blue,
                         onPressed: _toggleMute,
                       ),
                     ),
@@ -1025,7 +1021,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                             ? Icons.call_end
                             : Icons.videocam,
                         label: _isCameraEnabled ? 'Mode audio' : 'Caméra ON',
-                        color: _isCameraEnabled ? Colors.orange : Colors.blue,
+                        color: _isCameraEnabled ? Colors.white : Colors.blue,
                         onPressed: _toggleVideo,
                       ),
                     ),
@@ -1033,7 +1029,7 @@ class _AppelEnCoursState extends State<AppelEnCours> {
                       child: _buildCallButton(
                         icon: Icons.flip_camera_ios,
                         label: 'Retourner',
-                        color: Colors.blue,
+                        color: Colors.white,
                         onPressed: _switchCamera,
                       ),
                     ),

@@ -29,6 +29,7 @@ class _RegisterState extends State<Register> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _cguAccepted = false;
 
   @override
   void dispose() {
@@ -47,6 +48,17 @@ class _RegisterState extends State<Register> {
   }
 
   void _register() async {
+    if (!_cguAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Veuillez accepter les Conditions Générales d\'Utilisation',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -129,6 +141,50 @@ class _RegisterState extends State<Register> {
         }
       }
     }
+  }
+
+  void _showCguDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          'Conditions Générales d\'Utilisation',
+          style: TextStyle(color: Color(0xFF8D3188)),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            'Bienvenue sur CongoMedika.\n\n'
+            '1. Objet\n'
+            'CongoMedika est une plateforme de téléconsultation médicale '
+            'mettant en relation patients et médecins.\n\n'
+            '2. Compte utilisateur\n'
+            'Vous êtes responsable de la confidentialité de vos identifiants '
+            'et de l\'exactitude des informations fournies.\n\n'
+            '3. Services\n'
+            'Les téléconsultations sont fournies à titre informatif et ne '
+            'remplacent pas une consultation médicale en présentiel en cas '
+            'd\'urgence.\n\n'
+            '4. Données personnelles\n'
+            'Vos données sont traitées conformément à notre Politique de '
+            'confidentialité et ne sont jamais revendues à des tiers.\n\n'
+            '5. Responsabilités\n'
+            'Le médecin reste seul responsable des actes médicaux réalisés '
+            'lors des téléconsultations.\n\n'
+            '6. Résiliation\n'
+            'Vous pouvez supprimer votre compte à tout moment depuis les '
+            'paramètres. CongoMedika peut suspendre les comptes enfreignant '
+            'ces conditions.',
+            style: const TextStyle(fontSize: 13, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _selectDateOfBirth(BuildContext context) async {
@@ -722,6 +778,66 @@ class _RegisterState extends State<Register> {
                           },
                         ),
                         const SizedBox(height: 24),
+
+                        // Confirmation de lecture des CGU
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _cguAccepted,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _cguAccepted = value ?? false;
+                                  });
+                                },
+                                activeColor: const Color(0xFF8D3188),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    _showCguDialog(context),
+                                child: Text.rich(
+                                  TextSpan(
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                    ),
+                                    children: const [
+                                      TextSpan(text: 'J\'ai lu et j\'accepte les '),
+                                      TextSpan(
+                                        text:
+                                            'Conditions Générales d\'Utilisation',
+                                        style: TextStyle(
+                                          color: Color(0xFF8D3188),
+                                          fontWeight: FontWeight.w600,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                      TextSpan(text: ' et la '),
+                                      TextSpan(
+                                        text: 'Politique de confidentialité',
+                                        style: TextStyle(
+                                          color: Color(0xFF8D3188),
+                                          fontWeight: FontWeight.w600,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
                         ElevatedButton(
                           onPressed: _isLoading ? null : _register,

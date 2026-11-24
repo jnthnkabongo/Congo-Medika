@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
+  /// Incrémenté à chaque login/logout : permet aux widgets (ex: le
+  /// verrou biométrique) de réévaluer la session sans polling.
+  static final ValueNotifier<int> sessionEpoch = ValueNotifier<int>(0);
   // static String baseUrl = 'http://localhost:3001/api/auth';
 
   static String get baseUrl {
@@ -294,6 +298,7 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userKey);
+    sessionEpoch.value++;
   }
 
   static Future<String?> getRefreshToken() async {

@@ -75,6 +75,8 @@
 	<string>Cette application a besoin d'accéder à la caméra pour les appels vidéo.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Cette application a besoin d'accéder au microphone pour les appels audio et vidéo.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Cette application utilise Face ID pour déverrouiller l'application.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>dev.flutter.background.refresh</string>

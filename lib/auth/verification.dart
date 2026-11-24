@@ -116,6 +116,9 @@ class _VerificationState extends State<Verification> {
             response['meetSaaSToken']['organizationId'],
           );
         }
+
+        // Notifier la nouvelle session (verrou biométrique, etc.)
+        AuthService.sessionEpoch.value++;
       }
 
       if (mounted) {

@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:frontend/services/websocket_service.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/messages_service.dart';
+import 'package:frontend/config/app_config.dart';
 import 'appel_en_cours.dart';
 import '../theme/app_theme.dart';
 
@@ -39,6 +44,13 @@ class _ChatsState extends State<Chats> {
   bool _isConnected = false;
   bool _isLoading = true;
   String? _userRole;
+
+  // Enregistrement de messages vocaux
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+  bool _isSendingAudio = false;
+  Timer? _recordingTimer;
+  int _recordingSeconds = 0;
 
   // Abonnements aux streams du WebSocketService (singleton) —
   // doivent être annulés dans dispose() pour éviter les setState
@@ -114,6 +126,7 @@ class _ChatsState extends State<Chats> {
               (m) =>
                   m['_pending'] == true &&
                   m['content'] == message['content'] &&
+                  m['type'] == message['type'] &&
                   m['senderType'] == message['senderType'],
             );
             if (pendingIndex >= 0) {
@@ -302,6 +315,170 @@ class _ChatsState extends State<Chats> {
     }
   }
 
+  // ===== Messages vocaux =====
+
+  String _formatRecordingDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      await _stopRecording(send: true);
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (!_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WebSocket non connecté. Veuillez réessayer.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final granted = await _audioRecorder.hasPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission microphone refusée'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/msg_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 64000,
+          sampleRate: 44100,
+        ),
+        path: path,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingSeconds = 0;
+      });
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _recordingSeconds++);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Impossible de démarrer l\'enregistrement: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopRecording({required bool send}) async {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    final duration = _recordingSeconds;
+    String? path;
+    try {
+      path = await _audioRecorder.stop();
+    } catch (e) {
+      debugPrint('[Chats] Erreur arrêt enregistrement: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _recordingSeconds = 0;
+      });
+    }
+
+    if (!send || path == null) {
+      // Annulation : supprimer le fichier temporaire
+      if (path != null) {
+        try {
+          await File(path).delete();
+        } catch (_) {}
+      }
+      return;
+    }
+    if (duration < 1) {
+      try {
+        await File(path).delete();
+      } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enregistrement trop court')),
+        );
+      }
+      return;
+    }
+
+    await _sendAudioMessage(path, duration);
+  }
+
+  Future<void> _sendAudioMessage(String filePath, int durationSeconds) async {
+    setState(() => _isSendingAudio = true);
+    try {
+      // 1. Upload du fichier sur le backend
+      final audioUrl = await MessagesService.uploadAudio(filePath);
+
+      // 2. Message optimiste + envoi WebSocket
+      final pendingMsg = <String, dynamic>{
+        'id': null,
+        'uuid': null,
+        'content': null,
+        'senderType': _userRole,
+        'type': 'audio',
+        'audioUrl': audioUrl,
+        'audioDuration': durationSeconds,
+        'createdAt': DateTime.now().toIso8601String(),
+        '_pending': true,
+      };
+      if (mounted) {
+        setState(() => _messages.add(pendingMsg));
+        _scrollToBottom();
+      }
+      _wsService.sendAudioMessage(
+        roomId: widget.roomId,
+        audioUrl: audioUrl,
+        audioDuration: durationSeconds,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur envoi audio: $e')));
+      }
+    } finally {
+      // Nettoyer le fichier temporaire
+      try {
+        await File(filePath).delete();
+      } catch (_) {}
+      if (mounted) setState(() => _isSendingAudio = false);
+    }
+  }
+
+  /// L'audioUrl stocké est relatif (/uploads/...) : on le préfixe avec
+  /// l'origine de l'API pour la lecture.
+  String _resolveAudioUrl(String? audioUrl) {
+    if (audioUrl == null || audioUrl.isEmpty) return '';
+    if (audioUrl.startsWith('http')) return audioUrl;
+    return '${AppConfig.apiBaseUrl}$audioUrl';
+  }
+
   Future<void> _startCall({required bool video}) async {
     try {
       final user = await AuthService.getDonneesUser('user');
@@ -358,6 +535,8 @@ class _ChatsState extends State<Chats> {
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
+    _audioRecorder.dispose();
     _cancelSubscriptions();
     _messageController.dispose();
     _scrollController.dispose();
@@ -497,8 +676,28 @@ class _ChatsState extends State<Chats> {
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
                         final message = _messages[index];
+                        final isAudio =
+                            message['type'] == 'audio' ||
+                            message['audioUrl'] != null;
+                        if (isAudio) {
+                          return _AudioMessageBubble(
+                            audioUrl: _resolveAudioUrl(
+                              message['audioUrl']?.toString(),
+                            ),
+                            durationSeconds:
+                                message['audioDuration'] is int
+                                ? message['audioDuration'] as int
+                                : int.tryParse(
+                                    message['audioDuration']?.toString() ??
+                                        '',
+                                  ),
+                            isSent: message['senderType'] == _userRole,
+                            time: _formatTime(message['createdAt']),
+                            pending: message['_pending'] == true,
+                          );
+                        }
                         return _buildMessageBubble(
-                          message['content'] as String? ?? '[Audio]',
+                          message['content'] as String? ?? '',
                           message['senderType'] == _userRole,
                           _formatTime(message['createdAt']),
                         );
@@ -518,16 +717,34 @@ class _ChatsState extends State<Chats> {
                 ),
               ],
             ),
-            child: Row(
+            child: _isRecording
+                ? _buildRecordingBar()
+                : _isSendingAudio
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : Row(
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: _isConnected
+                        ? Colors.grey[200]
+                        : Colors.grey[300],
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.mic),
-                    onPressed: () {},
+                    icon: Icon(
+                      Icons.mic,
+                      color: _isConnected ? Colors.black87 : Colors.grey,
+                    ),
+                    onPressed: _isConnected ? _toggleRecording : null,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -566,6 +783,68 @@ class _ChatsState extends State<Chats> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecordingBar() {
+    return Row(
+      children: [
+        // Annuler
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: () => _stopRecording(send: false),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Indicateur + minuteur
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Enregistrement ${_formatRecordingDuration(_recordingSeconds)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Envoyer
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF8D3188),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.send, color: Colors.white),
+            onPressed: () => _stopRecording(send: true),
+          ),
+        ),
+      ],
     );
   }
 
@@ -616,6 +895,211 @@ class _ChatsState extends State<Chats> {
           ),
           const SizedBox(height: 4),
           Text(time, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bulle de message vocal : bouton lecture/pause + durée + progression.
+class _AudioMessageBubble extends StatefulWidget {
+  final String audioUrl;
+  final int? durationSeconds;
+  final bool isSent;
+  final String time;
+  final bool pending;
+
+  const _AudioMessageBubble({
+    required this.audioUrl,
+    required this.durationSeconds,
+    required this.isSent,
+    required this.time,
+    this.pending = false,
+  });
+
+  @override
+  State<_AudioMessageBubble> createState() => _AudioMessageBubbleState();
+}
+
+class _AudioMessageBubbleState extends State<_AudioMessageBubble> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  final List<StreamSubscription> _subs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.durationSeconds != null) {
+      _duration = Duration(seconds: widget.durationSeconds!);
+    }
+    _subs.add(
+      _player.onPlayerStateChanged.listen((state) {
+        if (!mounted) return;
+        setState(() => _isPlaying = state == PlayerState.playing);
+      }),
+    );
+    _subs.add(
+      _player.onDurationChanged.listen((duration) {
+        if (!mounted) return;
+        setState(() => _duration = duration);
+      }),
+    );
+    _subs.add(
+      _player.onPositionChanged.listen((position) {
+        if (!mounted) return;
+        setState(() => _position = position);
+      }),
+    );
+    _subs.add(
+      _player.onPlayerComplete.listen((_) {
+        if (!mounted) return;
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+        });
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subs) {
+      sub.cancel();
+    }
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlay() async {
+    try {
+      if (_isPlaying) {
+        await _player.pause();
+      } else {
+        if (_position > Duration.zero &&
+            _position < _duration &&
+            _duration > Duration.zero) {
+          await _player.resume();
+        } else {
+          await _player.play(UrlSource(widget.audioUrl));
+        }
+      }
+    } catch (e) {
+      debugPrint('[AudioBubble] Erreur lecture: $e');
+    }
+  }
+
+  String _fmt(Duration d) {
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isSent = widget.isSent;
+    final progress = _duration.inMilliseconds > 0
+        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(
+            0.0,
+            1.0,
+          )
+        : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: isSent
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Container(
+            constraints: const BoxConstraints(maxWidth: 280),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSent ? const Color(0xFF8D3188) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Bouton lecture/pause
+                GestureDetector(
+                  onTap: widget.audioUrl.isEmpty || widget.pending
+                      ? null
+                      : _togglePlay,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isSent
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : const Color(0xFF8D3188).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: isSent ? Colors.white : const Color(0xFF8D3188),
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Progression + durée
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 4,
+                          backgroundColor: isSent
+                              ? Colors.white.withValues(alpha: 0.3)
+                              : Colors.grey[300],
+                          valueColor: AlwaysStoppedAnimation(
+                            isSent ? Colors.white : const Color(0xFF8D3188),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_fmt(_position)} / ${_fmt(_duration)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isSent
+                            ? Colors.white70
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.mic,
+                  size: 16,
+                  color: isSent
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : Colors.grey[500],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.time,
+            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+          ),
         ],
       ),
     );

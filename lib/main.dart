@@ -4,6 +4,7 @@ import 'package:frontend/auth/login.dart';
 import 'package:frontend/auth/onboarding.dart';
 import 'package:frontend/theme/app_theme.dart';
 import 'package:frontend/widgets/call_notification_manager.dart';
+import 'package:frontend/widgets/biometric_gate.dart';
 import 'package:frontend/services/http_interceptor.dart';
 
 // GlobalKey pour le Navigator global
@@ -67,8 +68,9 @@ class _MyAppState extends State<MyApp> {
           : _onboardingCompleted!
               ? const Login()
               : const Onboarding(),
-      builder: (context, child) =>
-          CallNotificationManager(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => CallNotificationManager(
+        child: BiometricGate(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

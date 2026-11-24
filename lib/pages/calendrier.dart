@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/appointments_service.dart';
+import '../services/appointment_reminder_service.dart';
 import '../services/auth_service.dart';
 import 'appointment_form.dart';
 import 'dart:convert';
@@ -44,6 +45,8 @@ class _CalendrierState extends State<Calendriers> {
         _appointments = appointments;
         _isLoading = false;
       });
+      // Resynchroniser les rappels locaux (5 min avant chaque RDV)
+      AppointmentReminderService().syncReminders(appointments);
     } catch (e) {
       setState(() {
         _error = e.toString();

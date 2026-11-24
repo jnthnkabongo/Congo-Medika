@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/pages/profil_patient.dart';
 import 'package:frontend/pages/paiements.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/biometric_service.dart';
 import 'package:frontend/pages/edit_profile_bottom_sheet.dart';
 import 'package:frontend/auth/login.dart';
 import 'dart:convert';
@@ -17,11 +18,52 @@ class Parametres extends StatefulWidget {
 class _ParametresState extends State<Parametres> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final enabled = await BiometricService.isEnabled();
+    final available = await BiometricService.isAvailable();
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = enabled;
+        _biometricAvailable = available;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      final available = await BiometricService.isAvailable();
+      if (!available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Aucun capteur biométrique ou verrouillage écran disponible sur cet appareil',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      // Demander une authentification pour confirmer l'activation
+      final confirmed = await BiometricService.authenticate(
+        reason: 'Confirmez votre identité pour activer le verrouillage',
+      );
+      if (!confirmed) return;
+    }
+    await BiometricService.setEnabled(value);
+    if (mounted) {
+      setState(() => _biometricEnabled = value);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -266,7 +308,15 @@ class _ParametresState extends State<Parametres> {
                   );
                 },
               ),
-              // _buildSettingsItem('Sécurité', Icons.security, () {}),
+              _buildSettingsItem(
+                'Verrouillage biométrique',
+                Icons.fingerprint,
+                () {},
+                hasSwitch: true,
+                switchValue: _biometricEnabled,
+                switchEnabled: _biometricAvailable,
+                onSwitchChanged: _toggleBiometric,
+              ),
               _buildSettingsItem('Moyens de paiement', Icons.payment, () {
                 Navigator.push(
                   context,
@@ -283,6 +333,7 @@ class _ParametresState extends State<Parametres> {
                 () {},
                 hasSwitch: true,
                 switchValue: true,
+                onSwitchChanged: (_) {},
               ),
               _buildSettingsItem(
                 'Langue',
@@ -402,6 +453,8 @@ class _ParametresState extends State<Parametres> {
     String? trailing,
     bool hasSwitch = false,
     bool switchValue = false,
+    bool switchEnabled = true,
+    ValueChanged<bool>? onSwitchChanged,
   }) {
     return InkWell(
       onTap: onTap,
@@ -433,7 +486,7 @@ class _ParametresState extends State<Parametres> {
             if (hasSwitch)
               Switch(
                 value: switchValue,
-                onChanged: (value) {},
+                onChanged: switchEnabled ? onSwitchChanged : null,
                 activeThumbColor: const Color(0xFF8D3188),
               ),
             if (!hasSwitch && trailing == null)

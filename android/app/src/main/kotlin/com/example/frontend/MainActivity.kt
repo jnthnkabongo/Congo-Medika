@@ -7,12 +7,14 @@ import android.content.IntentFilter
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity est requis par local_auth (authentification
+// biométrique) sur Android.
+class MainActivity : FlutterFragmentActivity() {
     private val methodChannelName = "congomedika/audio"
     private val eventChannelName = "congomedika/audio_events"
 

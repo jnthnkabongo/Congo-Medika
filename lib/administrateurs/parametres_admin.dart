@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/pages/edit_profile_bottom_sheet.dart';
+import 'package:frontend/administrateurs/docteurs_admin.dart';
 import 'package:frontend/auth/login.dart';
 import 'dart:convert';
 import '../theme/app_theme.dart';
@@ -207,6 +208,22 @@ class _ParametresAdminState extends State<ParametresAdmin> {
                 _showEditProfile,
               ),
               _buildSettingsItem('Moyens de paiement', Icons.payment, () {}),
+            ]),
+            const SizedBox(height: 16),
+
+            _buildSettingsSection('Administration', [
+              _buildSettingsItem(
+                'Docteurs',
+                Icons.medical_services_outlined,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DocteursAdmin(),
+                    ),
+                  );
+                },
+              ),
             ]),
             const SizedBox(height: 16),
 
