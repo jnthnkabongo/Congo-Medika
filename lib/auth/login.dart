@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/auth/register.dart';
 import 'package:frontend/auth/verification.dart';
+import 'package:frontend/auth/mot_de_passe_oublie.dart';
 import 'package:frontend/services/auth_service.dart';
 import 'package:frontend/services/biometric_service.dart';
 
@@ -374,7 +375,13 @@ class _LoginState extends State<Login> {
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                // Handle forgot password
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const MotDePasseOublie(),
+                                  ),
+                                );
                               },
                               child: Text(
                                 'Mot de passe oublié?',
