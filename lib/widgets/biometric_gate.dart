@@ -74,11 +74,15 @@ class _BiometricGateState extends State<BiometricGate>
     if (!mounted) return;
 
     final hasSession = token != null && token.isNotEmpty;
+    // Login tout juste effectué : ne pas re-verrouiller, l'utilisateur
+    // vient de prouver son identité (mot de passe + code / empreinte).
+    final freshLogin = AuthService.justAuthenticated;
+    if (freshLogin) AuthService.justAuthenticated = false;
     setState(() {
       _enabled = enabled;
       _hasSession = hasSession;
       _checking = false;
-      if (!enabled || !hasSession) {
+      if (!enabled || !hasSession || freshLogin) {
         // Pas de verrou nécessaire : on affiche directement le contenu.
         _unlocked = true;
         _prompted = true;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:frontend/auth/register.dart';
 import 'package:frontend/auth/verification.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/biometric_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -17,6 +18,46 @@ class _LoginState extends State<Login> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _canBiometricLogin = false;
+  String? _savedEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _initBiometricLogin();
+  }
+
+  Future<void> _initBiometricLogin() async {
+    final canLogin = await BiometricService.canBiometricLogin();
+    if (!canLogin || !mounted) return;
+    final creds = await BiometricService.getCredentials();
+    setState(() {
+      _canBiometricLogin = true;
+      _savedEmail = creds?['email'];
+      if (_savedEmail != null) {
+        _emailController.text = _savedEmail!;
+      }
+    });
+  }
+
+  /// Connexion par empreinte : authentifie le capteur puis utilise les
+  /// identifiants enregistrés de façon sécurisée.
+  Future<void> _loginWithBiometric() async {
+    final confirmed = await BiometricService.authenticate(
+      reason: 'Connectez-vous à CongoMedika',
+    );
+    if (!confirmed || !mounted) return;
+
+    final creds = await BiometricService.getCredentials();
+    if (creds == null || !mounted) {
+      setState(() => _canBiometricLogin = false);
+      return;
+    }
+
+    _emailController.text = creds['email']!;
+    _passwordController.text = creds['password']!;
+    _login();
+  }
 
   @override
   void dispose() {
@@ -40,6 +81,16 @@ class _LoginState extends State<Login> {
 
         // Le login renvoie un challengeId pour la vérification 2FA
         if (response.containsKey('challengeId')) {
+          // Si le verrouillage biométrique est activé, mémoriser les
+          // identifiants (stockage sécurisé) pour la prochaine fois.
+          if (await BiometricService.isEnabled()) {
+            await BiometricService.saveCredentials(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
+            _canBiometricLogin = true;
+            _savedEmail = _emailController.text.trim();
+          }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -137,7 +188,8 @@ class _LoginState extends State<Login> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        response['message'] ?? 'Si le compte existe, un code sera envoyé.',
+                        response['message'] ??
+                            'Si le compte existe, un code sera envoyé.',
                       ),
                       backgroundColor: Colors.blue,
                     ),
@@ -334,7 +386,7 @@ class _LoginState extends State<Login> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 14),
 
                           // Login Button
                           ElevatedButton(
@@ -367,6 +419,73 @@ class _LoginState extends State<Login> {
                                     ),
                                   ),
                           ),
+
+                          SizedBox(height: 5),
+
+                          // Bouton de connexion biométrique
+                          if (_savedEmail != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                'Compte : $_savedEmail',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Expanded(child: Divider()),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Text(
+                                  'ou',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ),
+                              const Expanded(child: Divider()),
+                            ],
+                          ),
+                          if (_canBiometricLogin) ...[
+                            OutlinedButton.icon(
+                              onPressed: _isLoading
+                                  ? null
+                                  : _loginWithBiometric,
+                              icon: const Icon(
+                                Icons.fingerprint,
+                                color: Color(0xFF8D3188),
+                                size: 18,
+                              ),
+                              label: Text(
+                                'Se connecter avec l\'empreinte',
+                                style: TextStyle(
+                                  color: const Color(0xFF8D3188),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: Color(0xFF8D3188),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
                           Align(
                             alignment: Alignment.center,
                             child: Column(

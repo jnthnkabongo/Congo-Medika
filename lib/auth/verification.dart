@@ -118,6 +118,7 @@ class _VerificationState extends State<Verification> {
         }
 
         // Notifier la nouvelle session (verrou biométrique, etc.)
+        AuthService.justAuthenticated = true;
         AuthService.sessionEpoch.value++;
       }
 

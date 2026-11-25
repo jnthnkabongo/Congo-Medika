@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/biometric_service.dart';
 import 'package:frontend/pages/edit_profile_bottom_sheet.dart';
 import 'package:frontend/administrateurs/docteurs_admin.dart';
 import 'package:frontend/auth/login.dart';
@@ -16,11 +17,51 @@ class ParametresAdmin extends StatefulWidget {
 class _ParametresAdminState extends State<ParametresAdmin> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final enabled = await BiometricService.isEnabled();
+    final available = await BiometricService.isAvailable();
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = enabled;
+        _biometricAvailable = available;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      final available = await BiometricService.isAvailable();
+      if (!available) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Aucun capteur biométrique ou verrouillage écran disponible sur cet appareil',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      final confirmed = await BiometricService.authenticate(
+        reason: 'Confirmez votre identité pour activer le verrouillage',
+      );
+      if (!confirmed || !mounted) return;
+    }
+    await BiometricService.setEnabled(value);
+    if (mounted) {
+      setState(() => _biometricEnabled = value);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -208,6 +249,15 @@ class _ParametresAdminState extends State<ParametresAdmin> {
                 _showEditProfile,
               ),
               _buildSettingsItem('Moyens de paiement', Icons.payment, () {}),
+              _buildSettingsItem(
+                'Verrouillage biométrique',
+                Icons.fingerprint,
+                () {},
+                hasSwitch: true,
+                switchValue: _biometricEnabled,
+                switchEnabled: _biometricAvailable,
+                onSwitchChanged: _toggleBiometric,
+              ),
             ]),
             const SizedBox(height: 16),
 
@@ -380,6 +430,8 @@ class _ParametresAdminState extends State<ParametresAdmin> {
     String? trailing,
     bool hasSwitch = false,
     bool switchValue = false,
+    bool switchEnabled = true,
+    ValueChanged<bool>? onSwitchChanged,
   }) {
     return InkWell(
       onTap: onTap,
@@ -411,7 +463,7 @@ class _ParametresAdminState extends State<ParametresAdmin> {
             if (hasSwitch)
               Switch(
                 value: switchValue,
-                onChanged: (value) {},
+                onChanged: switchEnabled ? (onSwitchChanged ?? (_) {}) : null,
                 activeThumbColor: const Color(0xFF8D3188),
               ),
             if (!hasSwitch && trailing == null)
